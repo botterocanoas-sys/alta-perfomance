@@ -1,0 +1,501 @@
+// Modelo de dados do Alta Performance Bottero.
+// Desenho aprovado na etapa 1 (docs/01-stack-e-modelo-de-dados.md) com as
+// correções da revisão (docs/03-correcoes-da-revisao.md).
+//
+// Regra que atravessa o arquivo inteiro: o que vem do relatório ou é digitado
+// é imutável; o que é calculado pode ser apagado e refeito a qualquer momento.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Papel {
+  ADMIN
+  GERENTE
+}
+
+enum Indicador {
+  VALOR
+  PARES
+  BOLSAS
+  PA
+  CONVERSAO
+  CRM
+}
+
+enum TipoFaixa {
+  ZERO
+  MEIO
+  BASE
+  ALTO
+}
+
+enum StatusImportacao {
+  PENDENTE
+  CONFIRMADA
+  DESCARTADA
+}
+
+/// Como a meta de Pares e Bolsas é repartida entre as vendedoras da loja.
+/// PROPORCIONAL (padrão): pelo peso da meta de Valor de cada uma.
+/// IGUAL: dividida em partes iguais entre as vendedoras ativas.
+enum ModoRateio {
+  PROPORCIONAL
+  IGUAL
+}
+
+// ─────────────────────────────────────────────────────────────
+// Cadastro
+// ─────────────────────────────────────────────────────────────
+
+model Loja {
+  id       String @id @default(uuid())
+  slug     String @unique
+  nome     String
+  endereco String
+
+  /// Texto que identifica o bloco desta loja no .xlsx, já normalizado
+  /// (sem acento, sem espaço sobrando, em maiúsculas).
+  chaveRelatorio String @unique
+
+  criadaEm DateTime @default(now())
+
+  usuarios         Usuario[]
+  vendedoras       Vendedora[]
+  metas            MetaMensal[]
+  configs          ConfigMes[]
+  regras           RegraPontuacao[]
+  faixas           FaixaPontuacao[]
+  linhasImportadas AcumuladoImportado[]
+  apuracoes        ApuracaoLojaDia[]
+  apelidos         VendedoraAlias[]
+
+  @@map("loja")
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  senhaHash String
+  nome      String
+  papel     Papel
+  /// Nulo para o admin, que enxerga as três lojas.
+  lojaId    String?
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now())
+
+  loja Loja? @relation(fields: [lojaId], references: [id])
+
+  sessoes     Sessao[]
+  importacoes Importacao[]
+  reunioes    Reuniao[]
+  crmLancado  CrmDiario[]
+  vendedora   Vendedora?
+
+  @@index([lojaId])
+  @@map("usuario")
+}
+
+model Sessao {
+  id        String   @id @default(uuid())
+  usuarioId String
+  expiraEm  DateTime
+  criadaEm  DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("sessao")
+}
+
+model Vendedora {
+  id     String @id @default(uuid())
+  lojaId String
+  nome   String
+
+  /// Trava manual para linhas que não são vendedoras de verdade e escapam do
+  /// critério automático "Meta > 0" (ex.: uma linha de teste com meta lançada
+  /// por engano). Quem está em false some da carteira, dos rankings, das
+  /// médias da loja e do rateio de Pares e Bolsas.
+  contaComoVendedora Boolean @default(true)
+
+  /// A pessoa também tem login de gerente. Ela continua sendo apurada como
+  /// vendedora (os números dela aparecem na tela e entram no total da loja),
+  /// mas não recebe o bônus de vendedora — ver recebeBonusVendedora.
+  usuarioId String? @unique
+
+  /// Quando falso, a apuração individual é calculada e exibida, mas o bônus
+  /// em R$ é zero: a pessoa é remunerada pelo resultado da loja.
+  /// É o caso da gerente da Padre, que também vende.
+  recebeBonusVendedora Boolean @default(true)
+
+  ativaDesde  DateTime  @default(now()) @db.Date
+  arquivadaEm DateTime? @db.Date
+  criadaEm    DateTime  @default(now())
+
+  loja    Loja     @relation(fields: [lojaId], references: [id])
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  apelidos         VendedoraAlias[]
+  linhasImportadas AcumuladoImportado[]
+  resultados       ResultadoDiario[]
+  crm              CrmDiario[]
+  apuracoes        ApuracaoDia[]
+  reunioes         Reuniao[]
+
+  @@unique([lojaId, nome])
+  @@index([lojaId])
+  @@map("vendedora")
+}
+
+/// Como o nome da pessoa aparece escrito no relatório. Sem isso, uma
+/// grafia diferente ("ANA P." em vez de "ANA PAULA") criaria uma segunda
+/// pessoa e partiria o histórico em dois.
+model VendedoraAlias {
+  id              String @id @default(uuid())
+  vendedoraId     String
+  /// Repetido aqui de propósito: o parser procura por (loja, nome) e o mesmo
+  /// nome pode existir em duas lojas — "ALVARO" aparece nas três.
+  lojaId          String
+  /// Já normalizado: sem acento, sem espaço sobrando, em maiúsculas.
+  nomeNoRelatorio String
+
+  vendedora Vendedora @relation(fields: [vendedoraId], references: [id], onDelete: Cascade)
+  loja      Loja      @relation(fields: [lojaId], references: [id])
+
+  @@unique([lojaId, nomeNoRelatorio])
+  @@index([vendedoraId])
+  @@map("vendedora_alias")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Configuração do programa, por loja e por mês
+// ─────────────────────────────────────────────────────────────
+
+model MetaMensal {
+  id            String   @id @default(uuid())
+  lojaId        String
+  /// Sempre o dia 1 do mês de referência.
+  mesReferencia DateTime @db.Date
+
+  /// Metas da loja. A meta de Valor de cada vendedora NÃO sai daqui: vem da
+  /// coluna "Meta" do relatório. Esta serve para a apuração da gerente e para
+  /// conferir a soma das metas individuais na importação.
+  valorLoja  Decimal @db.Decimal(14, 2)
+  paresLoja  Decimal @db.Decimal(14, 4)
+  bolsasLoja Decimal @db.Decimal(14, 4)
+
+  /// Metas fixas, idênticas para a loja e para cada vendedora.
+  pa        Decimal @db.Decimal(8, 4)
+  conversao Decimal @db.Decimal(8, 4)
+  crm       Decimal @db.Decimal(8, 4)
+
+  /// Como repartir Pares e Bolsas entre as vendedoras.
+  modoRateio ModoRateio @default(PROPORCIONAL)
+
+  atualizadoEm DateTime @updatedAt
+
+  loja Loja @relation(fields: [lojaId], references: [id])
+
+  @@unique([lojaId, mesReferencia])
+  @@map("meta_mensal")
+}
+
+model ConfigMes {
+  id            String   @id @default(uuid())
+  lojaId        String
+  mesReferencia DateTime @db.Date
+
+  valorPontoVendedora Decimal @db.Decimal(10, 2)
+  valorPontoGerente   Decimal @db.Decimal(10, 2)
+
+  /// Soma obrigatória dos pontos "alto" dos seis indicadores. A distribuição
+  /// entre indicadores muda conforme a estratégia do mês, mas o total tem de
+  /// fechar neste número — a tela de configuração bloqueia o salvamento se
+  /// não fechar.
+  totalPontosAlto Decimal @default(40) @db.Decimal(6, 2)
+
+  atualizadoEm DateTime @updatedAt
+
+  loja Loja @relation(fields: [lojaId], references: [id])
+
+  @@unique([lojaId, mesReferencia])
+  @@map("config_mes")
+}
+
+model RegraPontuacao {
+  id            String    @id @default(uuid())
+  lojaId        String
+  mesReferencia DateTime  @db.Date
+  indicador     Indicador
+
+  pontosBase Decimal @db.Decimal(6, 2)
+  pontosAlto Decimal @db.Decimal(6, 2)
+
+  /// Verdadeiro em VALOR, PARES e BOLSAS: a meta da loja é repartida entre as
+  /// vendedoras. Falso em PA, CONVERSAO e CRM, que são razões e valem a mesma
+  /// porcentagem para a loja e para cada vendedora.
+  rateiaPorVendedora Boolean
+
+  /// Verdadeiro em VALOR, PARES e BOLSAS: durante o mês a meta é reduzida na
+  /// proporção dos dias já corridos. Falso nas razões, que não crescem com o
+  /// número de dias e são comparadas direto com a meta fixa.
+  proporcionalAosDias Boolean
+
+  /// Permite desligar um indicador ou ligar um novo (Óculos) sem tocar no
+  /// código. Um indicador desligado não pontua e não aparece na tela.
+  ativo Boolean @default(true)
+
+  loja Loja @relation(fields: [lojaId], references: [id])
+
+  @@unique([lojaId, mesReferencia, indicador])
+  @@map("regra_pontuacao")
+}
+
+model FaixaPontuacao {
+  id            String   @id @default(uuid())
+  lojaId        String
+  mesReferencia DateTime @db.Date
+  ordem         Int
+
+  /// Limites em fração: 0.95 = 95%. Cada ponta diz se o próprio limite entra
+  /// na faixa, sem depender de epsilon nem da ordem de avaliação. As quatro
+  /// faixas aprovadas ficam assim:
+  ///   ZERO [0, 0.95)  ·  MEIO [0.95, 1.00)  ·  BASE [1.00, 1.10]  ·  ALTO (1.10, ∞)
+  /// É o que faz 110% cravado pagar a base e só acima disso pagar o alto.
+  pctMin          Decimal  @db.Decimal(8, 4)
+  pctMinInclusivo Boolean  @default(true)
+  /// Nulo significa "sem teto".
+  pctMax          Decimal? @db.Decimal(8, 4)
+  pctMaxInclusivo Boolean  @default(false)
+
+  tipo TipoFaixa
+
+  /// Preenchido só na faixa MEIO (0,5). Nas outras, os pontos vêm de
+  /// RegraPontuacao.pontosBase / pontosAlto.
+  pontosFixos Decimal? @db.Decimal(6, 2)
+
+  loja Loja @relation(fields: [lojaId], references: [id])
+
+  @@unique([lojaId, mesReferencia, ordem])
+  @@map("faixa_pontuacao")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Entrada de dados
+// ─────────────────────────────────────────────────────────────
+
+model Importacao {
+  id             String           @id @default(uuid())
+  arquivoNome    String
+  arquivoUrl     String?
+  /// Impede subir o mesmo arquivo duas vezes.
+  sha256         String           @unique
+  /// A que dia esta importação pertence, no fuso de Porto Alegre.
+  dataReferencia DateTime         @db.Date
+  /// Horário de extração lido do nome do arquivo, quando existe.
+  extraidoEm     DateTime?
+  importadoPor   String
+  status         StatusImportacao @default(PENDENTE)
+  criadaEm       DateTime         @default(now())
+
+  usuario Usuario              @relation(fields: [importadoPor], references: [id])
+  linhas  AcumuladoImportado[]
+
+  resultadosComoAtual ResultadoDiario[] @relation("importacaoAtual")
+  resultadosComoBase  ResultadoDiario[] @relation("importacaoBase")
+
+  @@index([dataReferencia])
+  @@map("importacao")
+}
+
+/// Uma linha do relatório, exatamente como veio. Nunca é alterada.
+/// Os números são ACUMULADOS DO MÊS até a hora da extração.
+model AcumuladoImportado {
+  id            String @id @default(uuid())
+  importacaoId  String
+  lojaId        String
+  vendedoraId   String
+  linhaOriginal Int
+
+  valor         Decimal @db.Decimal(14, 4)
+  baseComissao  Decimal @db.Decimal(14, 4)
+  /// Coluna "Meta" — a meta de Valor do mês daquela vendedora.
+  /// Meta zero significa que a pessoa não está ativa no programa neste mês.
+  metaValor     Decimal @db.Decimal(14, 2)
+  pa            Decimal @db.Decimal(10, 4)
+  ticketMedio   Decimal @db.Decimal(14, 4)
+  bs            Decimal @db.Decimal(14, 4)
+  oportunidades Int
+  boletos       Int
+  /// Vem do relatório em pontos percentuais (44.44), não em fração.
+  /// Guardado como veio; o app recalcula a conversão a partir dos componentes.
+  conversao     Decimal @db.Decimal(10, 4)
+  calcados      Int
+  bolsas        Int
+  cintos        Int
+  carteiras     Int
+  meias         Int
+  kitCuidado    Int
+  total         Int
+
+  importacao Importacao @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
+  loja       Loja       @relation(fields: [lojaId], references: [id])
+  vendedora  Vendedora  @relation(fields: [vendedoraId], references: [id])
+
+  @@unique([importacaoId, vendedoraId])
+  @@index([vendedoraId])
+  @@index([lojaId])
+  @@map("acumulado_importado")
+}
+
+model CrmDiario {
+  id                  String   @id @default(uuid())
+  vendedoraId         String
+  data                DateTime @db.Date
+  /// QUANTIDADE de vendas influenciadas pelo CRM, digitada pela gerente.
+  /// O app calcula a razão sobre os boletos — a gerente nunca digita 0,20.
+  vendasInfluenciadas Int
+  registradoPor       String
+  criadoEm            DateTime @default(now())
+  atualizadoEm        DateTime @updatedAt
+
+  vendedora Vendedora @relation(fields: [vendedoraId], references: [id], onDelete: Cascade)
+  usuario   Usuario   @relation(fields: [registradoPor], references: [id])
+
+  @@unique([vendedoraId, data])
+  @@index([data])
+  @@map("crm_diario")
+}
+
+model Reuniao {
+  id            String   @id @default(uuid())
+  vendedoraId   String
+  data          DateTime @db.Date
+  registradoPor String
+
+  pauta          String @default("")
+  acordos        String @default("")
+  observacoes    String @default("")
+  proximosPassos String @default("")
+
+  criadaEm     DateTime @default(now())
+  atualizadaEm DateTime @updatedAt
+
+  vendedora Vendedora @relation(fields: [vendedoraId], references: [id], onDelete: Cascade)
+  usuario   Usuario   @relation(fields: [registradoPor], references: [id])
+
+  @@unique([vendedoraId, data])
+  @@index([vendedoraId, data])
+  @@map("reuniao")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Derivado — apagável e recalculável
+// ─────────────────────────────────────────────────────────────
+
+/// O que aconteceu num dia: a diferença entre a importação oficial daquele dia
+/// e a oficial do dia anterior.
+model ResultadoDiario {
+  id          String   @id @default(uuid())
+  vendedoraId String
+  data        DateTime @db.Date
+
+  importacaoId     String
+  /// Nulo na primeira importação do mês, quando não há base para subtrair.
+  importacaoBaseId String?
+
+  valor         Decimal @db.Decimal(14, 4)
+  calcados      Int
+  bolsas        Int
+  boletos       Int
+  oportunidades Int
+  totalPecas    Int
+
+  /// Razões recalculadas a partir dos componentes do dia.
+  /// Nulo quando o denominador é zero — nunca 0, nunca infinito.
+  pa        Decimal? @db.Decimal(10, 4)
+  conversao Decimal? @db.Decimal(10, 4)
+
+  /// Foto da coluna "Meta" na importação que gerou este dia.
+  metaValorMes Decimal @db.Decimal(14, 2)
+
+  calculadoEm DateTime @default(now())
+
+  vendedora      Vendedora   @relation(fields: [vendedoraId], references: [id], onDelete: Cascade)
+  importacao     Importacao  @relation("importacaoAtual", fields: [importacaoId], references: [id])
+  importacaoBase Importacao? @relation("importacaoBase", fields: [importacaoBaseId], references: [id])
+
+  @@unique([vendedoraId, data])
+  @@index([data])
+  @@map("resultado_diario")
+}
+
+/// A apuração de uma vendedora num dia, por indicador. Guarda as duas leituras:
+/// o resultado daquele dia (para o gráfico de 7 dias e a consistência) e a foto
+/// do acumulado contra a meta proporcional (a pontuação oficial projetada).
+model ApuracaoDia {
+  id          String    @id @default(uuid())
+  vendedoraId String
+  data        DateTime  @db.Date
+  indicador   Indicador
+
+  // Leitura 1 — o dia isolado.
+  realizadoDia Decimal?   @db.Decimal(16, 4)
+  metaDia      Decimal?   @db.Decimal(16, 4)
+  faixaDia     TipoFaixa?
+
+  // Leitura 2 — o acumulado do mês contra a meta proporcional aos dias.
+  acumulado        Decimal?   @db.Decimal(16, 4)
+  metaProporcional Decimal?   @db.Decimal(16, 4)
+  /// Fração (1.03 = 103%). Nulo quando não há meta ou não há dado.
+  pct              Decimal?   @db.Decimal(10, 4)
+  faixa            TipoFaixa?
+  pontos           Decimal    @default(0) @db.Decimal(6, 2)
+  /// Zero quando a pessoa não recebe bônus de vendedora (é a gerente).
+  bonusReais       Decimal    @default(0) @db.Decimal(10, 2)
+
+  /// Dias corridos do mês até esta data. Serve para a tela dizer o quanto a
+  /// projeção ainda é frágil.
+  diasDecorridos Int
+  diasDoMes      Int
+
+  calculadoEm DateTime @default(now())
+
+  vendedora Vendedora @relation(fields: [vendedoraId], references: [id], onDelete: Cascade)
+
+  @@unique([vendedoraId, data, indicador])
+  @@index([vendedoraId, data])
+  @@map("apuracao_dia")
+}
+
+/// A mesma apuração para a loja, que é como a gerente é remunerada.
+model ApuracaoLojaDia {
+  id        String    @id @default(uuid())
+  lojaId    String
+  data      DateTime  @db.Date
+  indicador Indicador
+
+  acumulado        Decimal?   @db.Decimal(16, 4)
+  metaProporcional Decimal?   @db.Decimal(16, 4)
+  pct              Decimal?   @db.Decimal(10, 4)
+  faixa            TipoFaixa?
+  pontos           Decimal    @default(0) @db.Decimal(6, 2)
+  bonusReais       Decimal    @default(0) @db.Decimal(10, 2)
+
+  diasDecorridos Int
+  diasDoMes      Int
+
+  calculadoEm DateTime @default(now())
+
+  loja Loja @relation(fields: [lojaId], references: [id])
+
+  @@unique([lojaId, data, indicador])
+  @@index([lojaId, data])
+  @@map("apuracao_loja_dia")
+}

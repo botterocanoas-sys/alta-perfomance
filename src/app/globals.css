@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/*
+ * Paleta e tipografia do brief (seção 10): fundo creme, serifa com peso nos
+ * títulos, alto contraste. O acabamento visual é a etapa 9 — por enquanto a
+ * tipografia usa as fontes do sistema, sem baixar fonte externa no build.
+ */
+@theme {
+  --color-creme: #f6f2ea;
+  --color-creme-fundo: #efe9dd;
+  --color-papel: #ffffff;
+  --color-tinta: #1a1713;
+  --color-tinta-2: #57504a;
+  --color-tinta-3: #8b8279;
+  --color-linha: #ddd5c6;
+  --color-vinho: #7c2d2d;
+  --color-vinho-claro: #f0e3e0;
+  --color-ritmo: #2c6149;
+  --color-atencao: #8a5a12;
+  --color-critico: #a03226;
+
+  --font-serifada: Georgia, "Times New Roman", "Liberation Serif", serif;
+  --font-sistema: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-numeros: ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
+}
+
+html,
+body {
+  background: var(--color-creme-fundo);
+  color: var(--color-tinta);
+  font-family: var(--font-serifada);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Números em colunas precisam alinhar; é a leitura mais importante do app. */
+.numeros {
+  font-family: var(--font-numeros);
+  font-variant-numeric: tabular-nums;
+}
+
+.rotulo {
+  font-family: var(--font-sistema);
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-tinta-3);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-vinho);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
