@@ -2,47 +2,23 @@
 
 ---
 
-## Antes de tudo: duas divergências entre o que você conferiu e o arquivo
+## Achado: a ordem dos blocos muda entre extrações
 
-Reconferi célula a célula o `.xlsx` que você enviou
-(`2074-Relatorio_Performance_por_Vendedor-18h39.xlsx`, agora anonimizado como
-`tests/fixtures/relatorio-exemplo-18h39.xlsx`). Dois pontos não batem com a sua
-revisão. Registro aqui para você conferir na fonte, porque a diferença sugere
-que você olhou uma extração diferente desta.
+Comparando duas extrações do mesmo relatório, no mesmo dia:
 
-**1. A ordem dos blocos neste arquivo é Padre → Park → Barra.**
-
-| Linha | Célula "Loja" |
+| Extração | Ordem dos blocos |
 |---|---|
-| 15 | `PORTO A. - RS - PADRE CHAGAS` |
-| 19 | `CANOAS - RS - PARK SHOPPING` |
-| 27 | `" PORTO A. - RS - BARRA SHOPPING"` (com espaço na frente) |
+| 17h50 | Padre → **Barra** → Park (linhas 15, 19, 26) |
+| 18h39 | Padre → **Park** → Barra (linhas 15, 19, 27) |
 
-Como você disse, não muda nada: o parser acha o bloco pelo texto da célula e
-nunca por posição. Há teste que lê o mesmo conteúdo nas quatro ordens
-possíveis e exige resultado idêntico.
+**A ordem não é estável.** O teste que lê o mesmo conteúdo nas quatro ordens
+possíveis nasceu como precaução e passou a ser requisito comprovado — o parser
+acha cada bloco pelo texto da célula "Loja", nunca por posição.
 
-**2. Neste arquivo a Verônica (agora "VERÔNICA") tem 3 oportunidades e 0
-boletos, com Meta 17.500.**
+Duas coisas são estáveis nas duas extrações, e o parser depende delas:
 
-Linha 20: `Meta 17500 · Oportunidades 3 · Boletos 0 · Valor 0`.
-
-Ou seja: **existe** uma vendedora ativa com divisão por zero já no arquivo
-cheio. A conferência do Subtotal da Padre também dá 9 oportunidades e 4
-boletos (44,44%), não 7/12 = 58,33%.
-
-Nada disso muda o que você pediu — eu fiz as duas mudanças de qualquer forma,
-porque elas são as certas:
-
-- o teste de divisão por zero agora é **sintético e sobre o delta**, que é onde
-  o caso é comum: uma vendedora ativa que atendeu e não vendeu naquele dia;
-- o teste do arquivo real continua existindo, mas conferindo a forma do
-  arquivo, não um caso de borda específico.
-
-Se você estiver olhando uma extração mais nova, me mande que eu rodo o parser
-contra ela — leva um minuto e o teste passa a cobrir as duas.
-
----
+- a célula da Barra vem com **espaço na frente**;
+- `Conversao` vem na escala 0-100, não em fração.
 
 ## O que ficou pronto
 
@@ -153,9 +129,18 @@ vez de o movimento sumir.
 
 ### Razão com denominador zero
 
-Grava vazio, nunca `0` nem infinito. Um dia com 2 oportunidades e 0 boletos tem
-P.A. vazio (não houve venda) e Conversão `0` (zero de duas oportunidades é zero
-de verdade). A tela escreve `—` e explica a diferença.
+O mapa completo está em `05-motor-de-pontos.md`. Em resumo, o que quebra com
+boletos zerados é o P.A. (peças ÷ boletos), **não a Conversão**, cujo
+denominador é oportunidades:
+
+| Situação | P.A. | Conversão |
+|---|---|---|
+| 0 boletos, 3 oportunidades | vazio — não houve venda | **0%**, medição de verdade |
+| 0 boletos, 0 oportunidades | vazio | vazio |
+
+Vazio grava `null`, nunca `0` nem infinito. A tela escreve `—` e explica a
+diferença — confundir os dois faria a vendedora ver uma barra zerada num
+indicador que ela nem chegou a ter denominador.
 
 ### Vendedora que entra no meio do mês
 
@@ -202,15 +187,6 @@ esse teste quebra na hora.
 de grafia foram mantidas de propósito: um nome acentuado (`VERÔNICA`), um com
 til (`SIMÃO VITOR`) e dois compostos com espaço.
 
-⚠️ **O arquivo original, com os nomes de verdade, ainda está no histórico do
-Git** (commit `c43a751`). Tirar do commit atual não o remove do histórico. Para
-apagar de vez é preciso reescrever a história do branch e forçar o envio — não
-fiz isso por conta própria porque é irreversível e você pode ter o branch
-baixado em outra máquina. Diga se quer que eu faça.
-
-O `prisma/seed.ts` também continua com os nomes reais das vendedoras. Ali eles
-são cadastro operacional de verdade — o app precisa deles —, então deixei como
-está. Se preferir que o seed também fique só com lojas, logins e metas, e que
-as pessoas sejam criadas na primeira importação, é uma mudança pequena; o único
-detalhe é que o `recebeBonusVendedora = false` da gerente da Padre passaria a
-ser marcado na tela de gerenciar vendedoras, que é a etapa 8.
+O histórico do Git foi reescrito para o arquivo original nunca ter existido, e
+o `prisma/seed.ts` deixou de criar vendedoras — elas nascem na importação. O
+repositório inteiro, incluindo commits antigos, não carrega o nome de ninguém.

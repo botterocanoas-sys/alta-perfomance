@@ -14,12 +14,12 @@ Confirmações e surpresas úteis:
 |---|---|
 | Cabeçalho na linha 14, com 11 linhas em branco e um título antes | Procurar a célula "Loja", nunca índice fixo — como o brief já mandava |
 | Aba única, chamada `Indicadores` | Não depender do nome da aba |
-| Blocos na ordem **Padre, Park, Barra** | A ordem das lojas no arquivo não é fixa. Nunca assumir posição |
+| Blocos em ordem variável entre extrações | Nunca assumir posição: achar o bloco pelo texto da célula. Comprovado em `04` |
 | A célula da Barra vem com **espaço na frente** (`" PORTO A. - RS - BARRA SHOPPING"`) | Comparar sempre normalizado: sem acento, sem espaço sobrando, em maiúsculas |
 | `Conversao` vem em pontos percentuais (`44.44`), não em fração | Dividir por 100 antes de comparar com a meta 0,60 |
-| `PA` = `Total ÷ Boletos` e `Conversao` = `Boletos ÷ Oportunidades` | Bate com o recálculo previsto. Confirmado com Irene: 5 ÷ 3 = 1,6667 |
+| `PA` = `Total ÷ Boletos` e `Conversao` = `Boletos ÷ Oportunidades` | Bate com o recálculo previsto. Confirmado em duas linhas: 5 ÷ 3 = 1,6667 e 4 ÷ 9 = 44,44% |
 | A linha `Subtotal` traz a **meta da loja** (55.000 / 70.000 / 100.000) | Serve de conferência dupla na importação, além da soma |
-| Verônica tem 3 oportunidades e 0 boletos | O caso de divisão por zero acontece já no primeiro arquivo. Grava `null` |
+| Uma vendedora ativa tem 3 oportunidades e 0 boletos | P.A. e CRM ficam indefinidos; a Conversão é 0% de verdade. Ver `05` |
 
 ---
 
@@ -73,8 +73,9 @@ critério acerta as três lojas:
 | Park | IRENE, LARISSA, BEATRIZ, VERÔNICA | ANA CAROLINA, SIMÃO VITOR, ALVARO |
 
 O campo manual `vendedora.contaComoVendedora` continua existindo como trava
-para o que escapar do critério automático — o ALVARO já vem com ele em `false`
-no seed, das três lojas.
+para o que escapar do critério automático. O seed não cadastra ninguém: quem
+aparece no relatório com meta zero já fica de fora pelo critério, sem precisar
+de marcação.
 
 **Nenhum cálculo de percentual divide por meta zero.** Meta zero produz `null`
 (sem resultado), nunca `0` nem infinito.

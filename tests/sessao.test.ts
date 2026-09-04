@@ -160,8 +160,8 @@ describe("token de sessão", () => {
 describe("normalização de texto do relatório", () => {
   it("tira acento, espaço sobrando e diferença de maiúsculas", () => {
     expect(normalizar("Verônica")).toBe("VERONICA");
-    expect(normalizar("  João Victor  ")).toBe("SIMAO VITOR");
-    expect(normalizar("ANE  KAROLINE")).toBe("ANA CAROLINA");
+    expect(normalizar("  Simão Vitor  ")).toBe("SIMAO VITOR");
+    expect(normalizar("ANA  CAROLINA")).toBe("ANA CAROLINA");
   });
 
   it("resolve o espaço na frente do nome da Barra no relatório", () => {
