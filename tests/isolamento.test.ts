@@ -41,11 +41,27 @@ let barraId: string;
 let padreId: string;
 let parkId: string;
 
+/**
+ * O seed não cria vendedoras — elas nascem na importação. Estes testes criam as
+ * próprias, com nomes que só existem aqui, para não depender da ordem em que os
+ * arquivos de teste rodam nem do conteúdo do arquivo de exemplo.
+ */
+const MARCADORES = { barra: "ROSANGELA", padre: "SOLANGE", park: "TATIANE" } as const;
+
 beforeAll(async () => {
   const lojas = await prisma.loja.findMany();
   barraId = lojas.find((l) => l.slug === "barra")!.id;
   padreId = lojas.find((l) => l.slug === "padre")!.id;
   parkId = lojas.find((l) => l.slug === "park")!.id;
+
+  for (const [slug, nome] of Object.entries(MARCADORES)) {
+    const lojaId = lojas.find((l) => l.slug === slug)!.id;
+    await prisma.vendedora.upsert({
+      where: { lojaId_nome: { lojaId, nome } },
+      update: {},
+      create: { lojaId, nome },
+    });
+  }
 });
 
 describe("o que cada sessão enxerga", () => {
@@ -110,28 +126,28 @@ describe("tentativas de alcançar outra loja", () => {
 describe("acesso a uma vendedora pelo id", () => {
   it("a gerente da Barra não alcança uma vendedora da Padre", async () => {
     const sessao = await entrarComo("gerentebarra");
-    const emilly = await prisma.vendedora.findFirstOrThrow({
-      where: { lojaId: padreId, nome: "ELISA" },
+    const daPadre = await prisma.vendedora.findFirstOrThrow({
+      where: { lojaId: padreId, nome: MARCADORES.padre },
     });
 
-    await expect(exigirAcessoAVendedora(sessao, emilly.id)).rejects.toBeInstanceOf(AcessoNegado);
+    await expect(exigirAcessoAVendedora(sessao, daPadre.id)).rejects.toBeInstanceOf(AcessoNegado);
   });
 
   it("a gerente da Barra alcança as próprias vendedoras", async () => {
     const sessao = await entrarComo("gerentebarra");
-    const tassia = await prisma.vendedora.findFirstOrThrow({
-      where: { lojaId: barraId, nome: "TEREZA" },
+    const daBarra = await prisma.vendedora.findFirstOrThrow({
+      where: { lojaId: barraId, nome: MARCADORES.barra },
     });
 
-    const encontrada = await exigirAcessoAVendedora(sessao, tassia.id);
-    expect(encontrada.id).toBe(tassia.id);
+    const encontrada = await exigirAcessoAVendedora(sessao, daBarra.id);
+    expect(encontrada.id).toBe(daBarra.id);
     expect(encontrada.loja.slug).toBe("barra");
   });
 
   it("uma vendedora de outra loja responde igual a uma que não existe", async () => {
     const sessao = await entrarComo("gerentebarra");
-    const emilly = await prisma.vendedora.findFirstOrThrow({
-      where: { lojaId: padreId, nome: "ELISA" },
+    const daPadre = await prisma.vendedora.findFirstOrThrow({
+      where: { lojaId: padreId, nome: MARCADORES.padre },
     });
 
     // As duas mensagens têm de ser idênticas: se a de "outra loja" fosse
@@ -147,7 +163,7 @@ describe("acesso a uma vendedora pelo id", () => {
       }
     };
 
-    expect(await mensagemDoErro(emilly.id)).toBe(
+    expect(await mensagemDoErro(daPadre.id)).toBe(
       await mensagemDoErro("00000000-0000-0000-0000-000000000000"),
     );
   });
@@ -192,9 +208,9 @@ describe("varredura: nenhuma consulta com escopo devolve dado de outra loja", ()
     const vendedoras = await prisma.vendedora.findMany({ where: escopo });
     const nomes = vendedoras.map((v) => v.nome);
 
-    expect(nomes).toEqual(expect.arrayContaining(["TEREZA", "XIMENA", "JULIANA"]));
-    expect(nomes).not.toContain("ELISA"); // Padre
-    expect(nomes).not.toContain("IRENE"); // Park
+    expect(nomes).toContain(MARCADORES.barra);
+    expect(nomes).not.toContain(MARCADORES.padre);
+    expect(nomes).not.toContain(MARCADORES.park);
     expect(vendedoras.every((v) => v.lojaId === barraId)).toBe(true);
   });
 

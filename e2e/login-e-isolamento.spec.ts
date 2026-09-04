@@ -6,6 +6,12 @@ import { expect, test } from "@playwright/test";
  * camada HTTP — uma página que esquecesse de checar a sessão, por exemplo.
  */
 
+/**
+ * Criadas por `e2e/vendedoras-de-teste.ts` antes da suíte. Não aparecem no
+ * arquivo de exemplo, então estes testes não dependem de nenhuma importação.
+ */
+const MARCADORES = { barra: "ROSANGELA", padre: "SOLANGE", park: "TATIANE" };
+
 async function entrar(page: import("@playwright/test").Page, usuario: string, senha: string) {
   await page.goto("/entrar");
   await page.getByLabel("Usuário").fill(usuario);
@@ -55,16 +61,14 @@ test.describe("isolamento por loja no navegador", () => {
     await entrar(page, "gerentebarra", "barra123");
 
     await expect(page.getByRole("heading", { name: "Barra" })).toBeVisible();
-    await expect(page.getByText("TEREZA")).toBeVisible();
-    await expect(page.getByText("XIMENA")).toBeVisible();
-    await expect(page.getByText("JULIANA")).toBeVisible();
+    await expect(page.getByText(MARCADORES.barra)).toBeVisible();
   });
 
   test("a gerente da Barra não vê ninguém de Padre nem de Park", async ({ page }) => {
     await entrar(page, "gerentebarra", "barra123");
 
     const pagina = await page.content();
-    for (const nome of ["ELISA", "CLARICE", "IRENE", "LARISSA", "BEATRIZ", "VERONICA"]) {
+    for (const nome of [MARCADORES.padre, MARCADORES.park]) {
       expect(pagina, `a página vazou o nome ${nome}`).not.toContain(nome);
     }
     expect(pagina).not.toContain("Padre Chagas");
@@ -92,8 +96,8 @@ test.describe("isolamento por loja no navegador", () => {
     // A gerente da Park pede a Barra pelo id real. O parâmetro é ignorado.
     await page.goto(`/painel?loja=${idDaBarra}`);
     await expect(page.getByRole("heading", { name: "Park" })).toBeVisible();
-    await expect(page.getByText("IRENE")).toBeVisible();
-    expect(await page.content()).not.toContain("TEREZA");
+    await expect(page.getByText(MARCADORES.park)).toBeVisible();
+    expect(await page.content()).not.toContain(MARCADORES.barra);
 
     // Um id inventado dá no mesmo.
     await page.goto("/painel?loja=00000000-0000-0000-0000-000000000000");
@@ -113,11 +117,11 @@ test.describe("isolamento por loja no navegador", () => {
 
     await seletor.getByRole("link", { name: "Padre" }).click();
     await expect(page.getByRole("heading", { name: "Padre" })).toBeVisible();
-    await expect(page.getByText("ELISA")).toBeVisible();
+    await expect(page.getByText(MARCADORES.padre)).toBeVisible();
 
     await seletor.getByRole("link", { name: "Park" }).click();
     await expect(page.getByRole("heading", { name: "Park" })).toBeVisible();
-    await expect(page.getByText("IRENE")).toBeVisible();
+    await expect(page.getByText(MARCADORES.park)).toBeVisible();
   });
 });
 

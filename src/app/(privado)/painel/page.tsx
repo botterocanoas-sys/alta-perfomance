@@ -134,6 +134,12 @@ export default async function Painel({
 
       <section className="flex flex-wrap gap-3">
         <Link
+          href={`/pontos?loja=${loja.id}`}
+          className="rounded-sm border border-linha bg-papel px-4 py-2.5 font-sistema text-sm font-semibold text-tinta-2"
+        >
+          Pontos e bônus do mês
+        </Link>
+        <Link
           href={`/conferencia?loja=${loja.id}`}
           className="rounded-sm border border-linha bg-papel px-4 py-2.5 font-sistema text-sm font-semibold text-tinta-2"
         >
@@ -151,8 +157,8 @@ export default async function Painel({
 
       <section className="border-l-2 border-vinho bg-vinho-claro px-4 py-3">
         <p className="font-sistema text-sm text-tinta-2">
-          Etapa 3 de 10. O resumo do mês, o ranking e a tela da reunião entram
-          depois que o motor de pontos estiver pronto.
+          Etapa 4 de 10. O painel com resumo do mês e ranking, e a tela da
+          reunião, são as próximas.
         </p>
       </section>
     </div>

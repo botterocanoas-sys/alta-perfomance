@@ -41,6 +41,20 @@ enum StatusImportacao {
   DESCARTADA
 }
 
+/// Em que situação um indicador está para uma pessoa, num dia.
+///
+/// A distinção entre SEM_MEDICAO e um atingimento de 0% é o que impede a tela
+/// de mostrar uma barra zerada num indicador que a pessoa nem chegou a ter
+/// denominador. As duas rendem 0 ponto, mas só uma tem percentual.
+enum SituacaoApuracao {
+  /// Há meta e há medição: o percentual e a faixa valem.
+  APURADA
+  /// Faltou denominador (sem boleto, sem atendimento). Sem percentual.
+  SEM_MEDICAO
+  /// Indicador desligado, ou meta ausente/zerada: fora do programa neste mês.
+  FORA_DA_APURACAO
+}
+
 /// Como a meta de Pares e Bolsas é repartida entre as vendedoras da loja.
 /// PROPORCIONAL (padrão): pelo peso da meta de Valor de cada uma.
 /// IGUAL: dividida em partes iguais entre as vendedoras ativas.
@@ -451,14 +465,16 @@ model ApuracaoDia {
   faixaDia     TipoFaixa?
 
   // Leitura 2 — o acumulado do mês contra a meta proporcional aos dias.
-  acumulado        Decimal?   @db.Decimal(16, 4)
-  metaProporcional Decimal?   @db.Decimal(16, 4)
+  situacao         SituacaoApuracao @default(APURADA)
+  meta             Decimal?         @db.Decimal(16, 4)
+  acumulado        Decimal?         @db.Decimal(16, 4)
+  metaProporcional Decimal?         @db.Decimal(16, 4)
   /// Fração (1.03 = 103%). Nulo quando não há meta ou não há dado.
-  pct              Decimal?   @db.Decimal(10, 4)
+  pct              Decimal?         @db.Decimal(10, 4)
   faixa            TipoFaixa?
-  pontos           Decimal    @default(0) @db.Decimal(6, 2)
+  pontos           Decimal          @default(0) @db.Decimal(6, 2)
   /// Zero quando a pessoa não recebe bônus de vendedora (é a gerente).
-  bonusReais       Decimal    @default(0) @db.Decimal(10, 2)
+  bonusReais       Decimal          @default(0) @db.Decimal(10, 2)
 
   /// Dias corridos do mês até esta data. Serve para a tela dizer o quanto a
   /// projeção ainda é frágil.
@@ -481,12 +497,14 @@ model ApuracaoLojaDia {
   data      DateTime  @db.Date
   indicador Indicador
 
-  acumulado        Decimal?   @db.Decimal(16, 4)
-  metaProporcional Decimal?   @db.Decimal(16, 4)
-  pct              Decimal?   @db.Decimal(10, 4)
+  situacao         SituacaoApuracao @default(APURADA)
+  meta             Decimal?         @db.Decimal(16, 4)
+  acumulado        Decimal?         @db.Decimal(16, 4)
+  metaProporcional Decimal?         @db.Decimal(16, 4)
+  pct              Decimal?         @db.Decimal(10, 4)
   faixa            TipoFaixa?
-  pontos           Decimal    @default(0) @db.Decimal(6, 2)
-  bonusReais       Decimal    @default(0) @db.Decimal(10, 2)
+  pontos           Decimal          @default(0) @db.Decimal(6, 2)
+  bonusReais       Decimal          @default(0) @db.Decimal(10, 2)
 
   diasDecorridos Int
   diasDoMes      Int

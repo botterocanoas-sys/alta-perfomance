@@ -1,9 +1,19 @@
 /**
- * Popula o banco com o cadastro fixo do programa.
+ * Popula o banco com a CONFIGURAÇÃO do programa: as três lojas, os quatro
+ * logins, as metas do mês, as regras de pontuação e as faixas.
+ *
+ * Não cria vendedoras de propósito. Elas nascem na primeira importação do
+ * relatório, com o nome vindo do arquivo e a confirmação da gerente na prévia —
+ * assim o repositório não carrega nome de ninguém, e o cadastro reflete quem o
+ * sistema da loja realmente reporta.
+ *
+ * Consequência: quem também é gerente e vende (o caso da Padre) precisa ser
+ * marcada com "bônus só pelo resultado da loja" na tela de gerenciar
+ * vendedoras. É mais honesto do que vir cravado aqui.
  *
  * Roda com `npm run db:seed` e é idempotente: rodar de novo atualiza o que
- * mudou e não duplica nada. As senhas aqui são as combinadas no brief — a do
- * admin é provisória e deve ser trocada assim que a etapa 2 for para o ar.
+ * mudou e não duplica nada. A senha do admin é provisória e deve ser trocada
+ * assim que o app for para o ar.
  */
 import { Indicador, ModoRateio, Papel, PrismaClient, TipoFaixa } from "@prisma/client";
 
@@ -43,52 +53,9 @@ const METAS_FIXAS = { pa: 1.6, conversao: 0.6, crm: 0.2 };
 const USUARIOS = [
   { username: "admin", senha: "trocarsenha123", nome: "Administrador", papel: Papel.ADMIN, loja: null },
   { username: "gerentebarra", senha: "barra123", nome: "Gerente Barra", papel: Papel.GERENTE, loja: "barra" },
-  { username: "gerentepadre", senha: "padre123", nome: "Clarice", papel: Papel.GERENTE, loja: "padre" },
+  { username: "gerentepadre", senha: "padre123", nome: "Gerente Padre", papel: Papel.GERENTE, loja: "padre" },
   { username: "gerentepark", senha: "park123", nome: "Gerente Park", papel: Papel.GERENTE, loja: "park" },
 ] as const;
-
-/**
- * As pessoas que aparecem no relatório real de 03/09/2026.
- *
- * `contaComoVendedora: false` é a trava manual para linhas que não são
- * vendedoras. O filtro automático do mês é "Meta > 0" no relatório — quem está
- * com meta zero simplesmente não é apurada naquele mês, sem precisar de
- * cadastro nenhum.
- *
- * `usuario` liga a pessoa a um login de gerente. A gerente da Padre vende, mas
- * é remunerada pelo resultado da loja: aparece nos totais e tem apuração
- * individual na tela, com bônus de vendedora zerado.
- */
-const PESSOAS: Array<{
-  loja: string;
-  nome: string;
-  contaComoVendedora?: boolean;
-  usuario?: string;
-  recebeBonusVendedora?: boolean;
-}> = [
-  // Barra — 3 vendedoras ativas. A quarta será contratada; até lá a meta
-  // divide entre as 3 que têm meta no relatório.
-  { loja: "barra", nome: "TEREZA" },
-  { loja: "barra", nome: "XIMENA" },
-  { loja: "barra", nome: "JULIANA" },
-  { loja: "barra", nome: "MARILIA" },
-  { loja: "barra", nome: "CAMILA" },
-  { loja: "barra", nome: "ALVARO", contaComoVendedora: false },
-
-  // Padre — Clarice é a gerente e também vende (meta de R$ 11.000).
-  { loja: "padre", nome: "CLARICE", usuario: "gerentepadre", recebeBonusVendedora: false },
-  { loja: "padre", nome: "ELISA" },
-  { loja: "padre", nome: "ALVARO", contaComoVendedora: false },
-
-  // Park — 4 vendedoras ativas.
-  { loja: "park", nome: "IRENE" },
-  { loja: "park", nome: "LARISSA" },
-  { loja: "park", nome: "BEATRIZ" },
-  { loja: "park", nome: "VERONICA" },
-  { loja: "park", nome: "ANA CAROLINA" },
-  { loja: "park", nome: "SIMAO VITOR" },
-  { loja: "park", nome: "ALVARO", contaComoVendedora: false },
-];
 
 /**
  * Pontos por indicador. A soma dos "alto" tem de dar exatamente 40 — é a regra
@@ -246,44 +213,12 @@ export async function semear(prisma: PrismaClient) {
     idPorUsername.set(dados.username, usuario.id);
   }
 
-  for (const pessoa of PESSOAS) {
-    const lojaId = idPorSlug.get(pessoa.loja);
-    if (!lojaId) throw new Error(`Loja desconhecida no seed: ${pessoa.loja}`);
-
-    const nome = normalizar(pessoa.nome);
-    const usuarioId = pessoa.usuario ? (idPorUsername.get(pessoa.usuario) ?? null) : null;
-
-    const vendedora = await prisma.vendedora.upsert({
-      where: { lojaId_nome: { lojaId, nome } },
-      update: {
-        contaComoVendedora: pessoa.contaComoVendedora ?? true,
-        recebeBonusVendedora: pessoa.recebeBonusVendedora ?? true,
-        usuarioId,
-      },
-      create: {
-        lojaId,
-        nome,
-        contaComoVendedora: pessoa.contaComoVendedora ?? true,
-        recebeBonusVendedora: pessoa.recebeBonusVendedora ?? true,
-        usuarioId,
-        ativaDesde: MES,
-      },
-    });
-
-    // O apelido é como o nome aparece escrito no relatório. Começa igual ao
-    // nome cadastrado; a tela de importação acrescenta variações.
-    await prisma.vendedoraAlias.upsert({
-      where: { lojaId_nomeNoRelatorio: { lojaId, nomeNoRelatorio: nome } },
-      update: { vendedoraId: vendedora.id },
-      create: { vendedoraId: vendedora.id, lojaId, nomeNoRelatorio: nome },
-    });
-  }
-
   const totais = {
     lojas: await prisma.loja.count(),
     usuarios: await prisma.usuario.count(),
-    vendedoras: await prisma.vendedora.count(),
-    contamComoVendedora: await prisma.vendedora.count({ where: { contaComoVendedora: true } }),
+    metas: await prisma.metaMensal.count(),
+    regras: await prisma.regraPontuacao.count(),
+    faixas: await prisma.faixaPontuacao.count(),
   };
 
   return totais;

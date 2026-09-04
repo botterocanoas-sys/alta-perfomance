@@ -11,6 +11,7 @@ import {
   type BlocoDeLoja,
   type LinhaDoRelatorio,
 } from "./parser";
+import { recalcularApuracao } from "@/lib/apuracao";
 import { recalcularMes } from "./recalcular";
 
 /**
@@ -382,6 +383,9 @@ export async function confirmarImportacao(entrada: {
       await tx.acumuladoImportado.createMany({ data: linhas });
 
       const recalculo = await recalcularMes(tx, previa.mesReferencia, [...lojasTocadas]);
+      // Os pontos vêm logo atrás do delta: na mesma transação, para o mês nunca
+      // ficar com resultado novo e pontuação velha.
+      await recalcularApuracao(tx, previa.mesReferencia, [...lojasTocadas]);
 
       return {
         importacaoId: importacao.id,

@@ -103,9 +103,8 @@ describe("nomes novos", () => {
   it("todo nome que não bate com o cadastro entra como novo", async () => {
     const previa = await montarPrevia(readFileSync(EXEMPLO), "relatorio.xlsx", DIA_3);
 
-    // O banco de teste começa sem nenhuma vendedora, então todas as linhas do
-    // arquivo aparecem como novas — é exatamente a tela que a gerente vê na
-    // primeira importação do app.
+    // O seed cria só a configuração, sem vendedoras: na primeira importação do
+    // app todas as linhas aparecem como novas, para a gerente confirmar.
     expect(previa.nomesNovos.length).toBe(16);
     expect(previa.nomesNovos.map((novo) => novo.nome)).toContain("VERÔNICA");
   });

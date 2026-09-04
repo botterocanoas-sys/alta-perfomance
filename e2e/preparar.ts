@@ -13,4 +13,5 @@ export default function preparar() {
   execSync("npx prisma migrate deploy", { stdio: "inherit", env: ambiente });
   execSync("npx tsx tests/limpar-banco.ts", { stdio: "inherit", env: ambiente });
   execSync("npx tsx prisma/seed.ts", { stdio: "inherit", env: ambiente });
+  execSync("npx tsx e2e/vendedoras-de-teste.ts", { stdio: "inherit", env: ambiente });
 }

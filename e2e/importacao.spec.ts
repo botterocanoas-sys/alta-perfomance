@@ -133,3 +133,41 @@ test.describe("gravar e conferir", () => {
     await expect(page.getByRole("button", { name: "Confirmar e gravar" })).toHaveCount(0);
   });
 });
+
+test.describe("pontos e bônus", () => {
+  test("mostra a projeção com os dias corridos, e nunca 0% onde não houve medição", async ({
+    page,
+  }) => {
+    await entrar(page, "admin", "trocarsenha123");
+    await page.goto("/pontos");
+
+    // A tela precisa dizer que é projeção, e o quanto do mês já correu.
+    await expect(page.getByText("Isto é projeção, não bônus garantido.")).toBeVisible();
+    await expect(page.getByText("3 de 30")).toBeVisible();
+
+    await expect(page.getByRole("heading", { name: "Vendedoras" })).toBeVisible();
+    await expect(page.getByText("de 40", { exact: false }).first()).toBeVisible();
+
+    // VERÔNICA atendeu e não vendeu: P.A. e CRM sem medição, Conversão em 0%.
+    await page.goto("/pontos?loja=" + (await idDaLoja(page, "Park")));
+    await expect(page.getByText("sem medição").first()).toBeVisible();
+  });
+
+  test("a gerente vê os pontos só da própria loja", async ({ page }) => {
+    await entrar(page, "gerentebarra", "barra123");
+    await page.goto("/pontos");
+
+    await expect(page.getByRole("heading", { name: "Barra", level: 1 })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Trocar de loja" })).toHaveCount(0);
+    await expect(page.getByText("Gerente · resultado da loja")).toBeVisible();
+  });
+});
+
+/** Descobre o id de uma loja pelo seletor do admin. */
+async function idDaLoja(page: Page, nome: string): Promise<string> {
+  const href = await page
+    .getByRole("navigation", { name: "Trocar de loja" })
+    .getByRole("link", { name: nome })
+    .getAttribute("href");
+  return new URL(href!, "http://x").searchParams.get("loja")!;
+}

@@ -6,9 +6,10 @@ Grande do Sul — Barra, Padre e Park.
 A gerente abre a página da vendedora e vê, em trinta segundos, quanto ela
 ganhou ou perdeu de bônus, como está o mês e qual indicador atacar hoje.
 
-**Estado atual: etapa 3 de 10.** Login e isolamento por loja funcionando; a
-importação do relatório lê o arquivo, confere contra a linha Subtotal e calcula
-o resultado de cada dia por diferença. O motor de pontos é a etapa 4.
+**Estado atual: etapa 4 de 10.** Login e isolamento por loja funcionando; a
+importação lê o relatório, confere contra a linha Subtotal e calcula o
+resultado de cada dia por diferença; o motor de pontos apura metas, faixas,
+pontos e bônus. O painel da loja é a etapa 5.
 
 ---
 
@@ -20,6 +21,7 @@ o resultado de cada dia por diferença. O motor de pontos é a etapa 4.
 | [`docs/02-regras-confirmadas.md`](docs/02-regras-confirmadas.md) | As regras do bônus: faixas, pontos, metas, apuração mensal |
 | [`docs/03-correcoes-da-revisao.md`](docs/03-correcoes-da-revisao.md) | O que mudou depois de conferir o relatório real |
 | [`docs/04-importacao-e-delta.md`](docs/04-importacao-e-delta.md) | Como o arquivo é lido e como o resultado do dia é calculado |
+| [`docs/05-motor-de-pontos.md`](docs/05-motor-de-pontos.md) | Metas, faixas, pontos, bônus e o mapa dos denominadores |
 
 Se um número na tela parecer errado, a resposta está no `02`.
 
@@ -35,7 +37,7 @@ Postgres. Para desenvolver, o mais fácil é criar um banco gratuito na
 npm install                 # baixa as dependências
 cp .env.example .env        # e preencha DATABASE_URL e SESSAO_SECRET
 npx prisma migrate deploy   # cria as tabelas
-npm run db:seed             # cria as lojas, os 4 logins e as metas
+npm run db:seed             # cria as lojas, os 4 logins, as metas e as regras
 npm run dev                 # abre em http://localhost:3000
 ```
 
@@ -71,7 +73,9 @@ Dois testes valem por muitos:
 - **isolamento por loja** — logada como gerente da Barra, nenhuma consulta
   devolve dado de Padre ou Park, nem com o id da outra loja colado no endereço;
 - **delta** — os três casos da seção 5 do brief, a virada do mês, o dia
-  negativo por devolução e a divisão por zero.
+  negativo por devolução e a divisão por zero;
+- **pontos** — as fronteiras das faixas (94,9 / 95 / 100 / 110 / 110,1), o
+  rateio desigual da Padre e a diferença entre "sem medição" e 0%.
 
 ---
 
@@ -79,10 +83,13 @@ Dois testes valem por muitos:
 
 ```
 prisma/schema.prisma   o banco inteiro, com comentários explicando cada tabela
-prisma/seed.ts         lojas, logins, vendedoras, metas e regras de pontuação
+prisma/seed.ts         lojas, logins, metas e regras. NÃO cria vendedoras:
+                       elas nascem na primeira importação do relatório
 
 src/lib/escopo.ts      ⭐ o isolamento por loja. Toda consulta passa por aqui
 src/lib/delta.ts       ⭐ o resultado do dia por diferença. Funções puras
+src/lib/pontuacao.ts   ⭐ faixas, rateio das metas e o mapa dos denominadores
+src/lib/apuracao.ts    roda o motor sobre o banco e grava a apuração do dia
 src/lib/sessao.ts      login e ciclo de vida do token (sem depender do Next)
 src/lib/sessao-cookie.ts  a ponte com o cookie do navegador
 src/lib/senha.ts       hash Argon2id
@@ -95,6 +102,7 @@ src/app/(privado)/     tudo que exige sessão válida
   painel/              home da gerente
   importar/            upload com prévia (só admin)
   conferencia/         acumulado e resultado do dia lado a lado
+  pontos/              metas, percentuais, pontos e bônus do mês
 
 tests/                 testes de regra (Vitest)
 tests/fixtures/        o relatório de exemplo, com nomes fictícios
@@ -111,6 +119,10 @@ e2e/                   testes pelo navegador (Playwright)
    recalculados a partir da linha crua. Corrigir uma meta refaz o mês inteiro
    sozinho, em vez de deixar números velhos para trás.
 
+3. **Ausência de medição nunca vira zero.** Sem denominador, o indicador fica
+   `SEM_MEDICAO` e a tela mostra "sem medição" — nunca 0%, que é medição de
+   verdade. As duas rendem 0 ponto, mas dizem coisas diferentes.
+
 ---
 
 ## O que falta
@@ -120,7 +132,7 @@ e2e/                   testes pelo navegador (Playwright)
 | 1 | ✅ Stack, modelo de dados e regras do bônus |
 | 2 | ✅ Login, os 4 usuários e isolamento por loja |
 | 3 | ✅ Importação do relatório, parser e cálculo do delta |
-| 4 | Metas, motor de pontos e bônus |
+| 4 | ✅ Metas, motor de pontos e bônus |
 | 5 | Painel da loja |
 | 6 | Página da vendedora e registro da reunião |
 | 7 | Insights |
