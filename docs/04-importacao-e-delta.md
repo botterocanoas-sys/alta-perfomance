@@ -188,5 +188,14 @@ de grafia foram mantidas de propósito: um nome acentuado (`VERÔNICA`), um com
 til (`SIMÃO VITOR`) e dois compostos com espaço.
 
 O histórico do Git foi reescrito para o arquivo original nunca ter existido, e
-o `prisma/seed.ts` deixou de criar vendedoras — elas nascem na importação. O
-repositório inteiro, incluindo commits antigos, não carrega o nome de ninguém.
+o `prisma/seed.ts` deixou de criar vendedoras — elas nascem na importação.
+Nenhum commit alcançável pelo branch carrega o nome de ninguém, nem no `.xlsx`
+nem nos documentos.
+
+⚠️ **Uma ressalva sobre o force-push.** O GitHub mantém os commits antigos
+acessíveis por alguns dias a quem souber o SHA exato, mesmo depois de a
+referência sumir — eles só desaparecem quando a coleta de lixo do GitHub roda.
+Ninguém chega neles navegando pelo repositório, e o repositório é privado. Se
+quiser certeza absoluta e imediata, o caminho é abrir um chamado no suporte do
+GitHub pedindo a coleta de lixo, ou recriar o repositório do zero a partir do
+estado atual.
