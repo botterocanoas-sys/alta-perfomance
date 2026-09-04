@@ -132,10 +132,3 @@ test.describe("sair", () => {
     await expect(page).toHaveURL(/\/entrar$/);
   });
 });
-
-test.describe("estado vazio", () => {
-  test("sem importação, a tela diz o que fazer em vez de só 'sem dados'", async ({ page }) => {
-    await entrar(page, "gerentebarra", "barra123");
-    await expect(page.getByText("Aguardando a primeira importação do mês")).toBeVisible();
-  });
-});

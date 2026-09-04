@@ -6,9 +6,9 @@ Grande do Sul — Barra, Padre e Park.
 A gerente abre a página da vendedora e vê, em trinta segundos, quanto ela
 ganhou ou perdeu de bônus, como está o mês e qual indicador atacar hoje.
 
-**Estado atual: etapa 2 de 10.** Login, os quatro usuários e o isolamento por
-loja estão funcionando e testados. A importação do relatório e o motor de
-pontos vêm nas etapas 3 e 4.
+**Estado atual: etapa 3 de 10.** Login e isolamento por loja funcionando; a
+importação do relatório lê o arquivo, confere contra a linha Subtotal e calcula
+o resultado de cada dia por diferença. O motor de pontos é a etapa 4.
 
 ---
 
@@ -19,6 +19,7 @@ pontos vêm nas etapas 3 e 4.
 | [`docs/01-stack-e-modelo-de-dados.md`](docs/01-stack-e-modelo-de-dados.md) | Por que cada peça foi escolhida e o desenho do banco |
 | [`docs/02-regras-confirmadas.md`](docs/02-regras-confirmadas.md) | As regras do bônus: faixas, pontos, metas, apuração mensal |
 | [`docs/03-correcoes-da-revisao.md`](docs/03-correcoes-da-revisao.md) | O que mudou depois de conferir o relatório real |
+| [`docs/04-importacao-e-delta.md`](docs/04-importacao-e-delta.md) | Como o arquivo é lido e como o resultado do dia é calculado |
 
 Se um número na tela parecer errado, a resposta está no `02`.
 
@@ -65,9 +66,12 @@ Os testes usam um banco separado (`DATABASE_URL_TEST`), que é limpo e semeado
 a cada execução. O script se recusa a rodar em banco cujo nome não termine em
 `_test` — é a trava que impede apagar dados de verdade por engano.
 
-O teste que mais importa é o de isolamento: ele prova que, logada como gerente
-da Barra, nenhuma consulta devolve dado de Padre ou Park, nem quando o id da
-outra loja é colocado à mão no endereço.
+Dois testes valem por muitos:
+
+- **isolamento por loja** — logada como gerente da Barra, nenhuma consulta
+  devolve dado de Padre ou Park, nem com o id da outra loja colado no endereço;
+- **delta** — os três casos da seção 5 do brief, a virada do mês, o dia
+  negativo por devolução e a divisão por zero.
 
 ---
 
@@ -78,15 +82,22 @@ prisma/schema.prisma   o banco inteiro, com comentários explicando cada tabela
 prisma/seed.ts         lojas, logins, vendedoras, metas e regras de pontuação
 
 src/lib/escopo.ts      ⭐ o isolamento por loja. Toda consulta passa por aqui
+src/lib/delta.ts       ⭐ o resultado do dia por diferença. Funções puras
 src/lib/sessao.ts      login e ciclo de vida do token (sem depender do Next)
 src/lib/sessao-cookie.ts  a ponte com o cookie do navegador
 src/lib/senha.ts       hash Argon2id
 src/lib/texto.ts       normalização dos nomes vindos da planilha
+src/lib/data.ts        datas no fuso de Porto Alegre
+src/lib/relatorio/     parser do .xlsx, importação e recálculo do mês
 
 src/app/entrar/        tela de login
 src/app/(privado)/     tudo que exige sessão válida
+  painel/              home da gerente
+  importar/            upload com prévia (só admin)
+  conferencia/         acumulado e resultado do dia lado a lado
 
 tests/                 testes de regra (Vitest)
+tests/fixtures/        o relatório de exemplo, com nomes fictícios
 e2e/                   testes pelo navegador (Playwright)
 ```
 
@@ -108,7 +119,7 @@ e2e/                   testes pelo navegador (Playwright)
 |---|---|
 | 1 | ✅ Stack, modelo de dados e regras do bônus |
 | 2 | ✅ Login, os 4 usuários e isolamento por loja |
-| 3 | Importação do relatório, parser e cálculo do delta |
+| 3 | ✅ Importação do relatório, parser e cálculo do delta |
 | 4 | Metas, motor de pontos e bônus |
 | 5 | Painel da loja |
 | 6 | Página da vendedora e registro da reunião |

@@ -132,10 +132,27 @@ export default async function Painel({
         ) : null}
       </section>
 
+      <section className="flex flex-wrap gap-3">
+        <Link
+          href={`/conferencia?loja=${loja.id}`}
+          className="rounded-sm border border-linha bg-papel px-4 py-2.5 font-sistema text-sm font-semibold text-tinta-2"
+        >
+          Conferir os números do dia
+        </Link>
+        {ehAdmin(sessao) ? (
+          <Link
+            href="/importar"
+            className="rounded-sm bg-tinta px-4 py-2.5 font-sistema text-sm font-semibold text-creme"
+          >
+            Importar relatório
+          </Link>
+        ) : null}
+      </section>
+
       <section className="border-l-2 border-vinho bg-vinho-claro px-4 py-3">
         <p className="font-sistema text-sm text-tinta-2">
-          Etapa 2 de 10. As telas de resumo do mês, ranking e reunião entram
-          depois que a importação e o motor de pontos estiverem prontos.
+          Etapa 3 de 10. O resumo do mês, o ranking e a tela da reunião entram
+          depois que o motor de pontos estiver pronto.
         </p>
       </section>
     </div>

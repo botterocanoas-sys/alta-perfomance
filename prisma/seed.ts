@@ -10,8 +10,6 @@ import { Indicador, ModoRateio, Papel, PrismaClient, TipoFaixa } from "@prisma/c
 import { gerarHashDeSenha } from "../src/lib/senha";
 import { normalizar } from "../src/lib/texto";
 
-const prisma = new PrismaClient();
-
 /** Mês de referência inicial. O brief trazia agosto; estamos em setembro/2026. */
 const MES = new Date(Date.UTC(2026, 8, 1));
 
@@ -125,7 +123,11 @@ const FAIXAS = [
   { ordem: 4, pctMin: 1.1, minIncl: false, pctMax: null, maxIncl: false, tipo: TipoFaixa.ALTO, pontosFixos: null },
 ] as const;
 
-async function main() {
+/**
+ * Aplica o cadastro. Exportada para que os testes possam restaurar o estado
+ * depois de mexer nas tabelas — o seed é idempotente de propósito.
+ */
+export async function semear(prisma: PrismaClient) {
   const somaDosAltos = REGRAS.reduce((total, regra) => total + regra.alto, 0);
   if (somaDosAltos !== 40) {
     throw new Error(
@@ -284,14 +286,25 @@ async function main() {
     contamComoVendedora: await prisma.vendedora.count({ where: { contaComoVendedora: true } }),
   };
 
-  console.log("Seed concluído:", totais);
-  console.log('Lembrete: troque a senha do usuário "admin" antes de publicar.');
+  return totais;
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch(async (erro) => {
-    console.error(erro);
+/** Execução pela linha de comando: `npm run db:seed`. */
+async function main() {
+  const prisma = new PrismaClient();
+  try {
+    const totais = await semear(prisma);
+    console.log("Seed concluído:", totais);
+    console.log('Lembrete: troque a senha do usuário "admin" antes de publicar.');
+  } finally {
     await prisma.$disconnect();
+  }
+}
+
+// Só roda sozinho quando este arquivo é o ponto de entrada; importar não dispara.
+if (process.argv[1]?.endsWith("seed.ts")) {
+  main().catch((erro) => {
+    console.error(erro);
     process.exit(1);
   });
+}
