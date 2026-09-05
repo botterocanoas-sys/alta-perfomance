@@ -6,8 +6,11 @@ import {
   apurarTudo,
   faixaDe,
   metaAjustada,
+  melhorDegrau,
   metasDaGerente,
   metasDaVendedora,
+  proximoDegrau,
+  COBERTURA_MINIMA,
   realizadoPorIndicador,
   ritmoDoMes,
   SELO,
@@ -472,7 +475,7 @@ describe("o total do mês", () => {
   });
 });
 
-describe("o ritmo do mês e os selos do ranking", () => {
+describe("o ritmo do mês, a cobertura e os selos", () => {
   const item = (
     pct: number | null,
     pontosAlto: number,
@@ -480,56 +483,202 @@ describe("o ritmo do mês e os selos do ranking", () => {
   ) => ({ pct, situacao, pontosAlto });
 
   it("é a média dos percentuais ponderada pelos pontos de cada indicador", () => {
-    // Valor a 120% pesando 15, Conversão a 40% pesando 3.
     const ritmo = ritmoDoMes([item(1.2, 15), item(0.4, 3)]);
-    expect(ritmo).toBeCloseTo((1.2 * 15 + 0.4 * 3) / 18, 6);
+    expect(ritmo.valor).toBeCloseTo((1.2 * 15 + 0.4 * 3) / 18, 6);
+    expect(ritmo.pesoMedido).toBe(18);
   });
 
   it("ir mal no Valor pesa mais do que ir mal na Conversão", () => {
     const valorRuim = ritmoDoMes([item(0.5, 15), item(1.2, 3)]);
     const conversaoRuim = ritmoDoMes([item(1.2, 15), item(0.5, 3)]);
 
-    expect(valorRuim!).toBeLessThan(conversaoRuim!);
+    expect(valorRuim.valor!).toBeLessThan(conversaoRuim.valor!);
   });
 
   it("indicador sem medição fica de fora, em vez de contar como zero", () => {
     const comAusencia = ritmoDoMes([item(1.1, 15), item(null, 5, SITUACAO.SEM_MEDICAO)]);
-    const soOMedido = ritmoDoMes([item(1.1, 15)]);
 
-    expect(comAusencia).toBe(soOMedido);
+    expect(comAusencia.valor).toBeCloseTo(1.1, 6);
     // Se o ausente virasse zero, o ritmo cairia para 0,825.
-    expect(comAusencia).toBeCloseTo(1.1, 6);
+    expect(comAusencia.valor).not.toBeCloseTo(0.825, 3);
+    // Mas ele continua contando no peso total: a cobertura cai.
+    expect(comAusencia.pesoMedido).toBe(15);
+    expect(comAusencia.pesoTotal).toBe(20);
+    expect(comAusencia.cobertura).toBeCloseTo(0.75, 6);
   });
 
-  it("indicador fora da apuração também não entra", () => {
+  it("indicador fora da apuração não entra nem no peso total", () => {
+    // Meta zero não é ausência de medição: é ausência de programa. Ele some da
+    // conta inteira, então não derruba a cobertura de quem está fora dele.
     const ritmo = ritmoDoMes([item(1.0, 10), item(2, 15, SITUACAO.FORA_DA_APURACAO)]);
-    expect(ritmo).toBe(1);
+
+    expect(ritmo.valor).toBe(1);
+    expect(ritmo.pesoTotal).toBe(10);
+    expect(ritmo.cobertura).toBe(1);
   });
 
   it("sem nenhum indicador medido, o ritmo é nulo e não há selo", () => {
-    expect(ritmoDoMes([])).toBeNull();
-    expect(ritmoDoMes([item(null, 15, SITUACAO.SEM_MEDICAO)])).toBeNull();
-    expect(seloDoRitmo(null)).toBeNull();
+    expect(ritmoDoMes([]).valor).toBeNull();
+    expect(seloDoRitmo(ritmoDoMes([]))).toBeNull();
+    expect(seloDoRitmo(ritmoDoMes([item(null, 15, SITUACAO.SEM_MEDICAO)]))).toBeNull();
+  });
+});
+
+describe("a cobertura da medição decide se o selo pode ser emitido", () => {
+  const item = (
+    pct: number | null,
+    pontosAlto: number,
+    situacao: Situacao = SITUACAO.APURADA,
+  ) => ({ pct, situacao, pontosAlto });
+
+  /** Os seis indicadores do programa, com os pesos reais. */
+  const TODOS = { VALOR: 15, PARES: 7, BOLSAS: 7, PA: 5, CONVERSAO: 3, CRM: 3 };
+
+  /** Mede `medidos` com o percentual dado; o resto fica sem medição. */
+  function comCobertura(pct: number, medidos: (keyof typeof TODOS)[]) {
+    return ritmoDoMes(
+      (Object.keys(TODOS) as (keyof typeof TODOS)[]).map((chave) =>
+        medidos.includes(chave)
+          ? item(pct, TODOS[chave])
+          : item(null, TODOS[chave], SITUACAO.SEM_MEDICAO),
+      ),
+    );
+  }
+
+  it("com metade ou mais do peso medido, o selo vale", () => {
+    const metade = comCobertura(1.04, ["VALOR", "PARES"]); // 22 de 40
+    expect(metade.cobertura).toBeCloseTo(22 / 40, 6);
+    expect(metade.cobertura).toBeGreaterThanOrEqual(COBERTURA_MINIMA);
+    expect(seloDoRitmo(metade)).toBe(SELO.NO_RITMO);
+  });
+
+  it("abaixo de metade do peso, vira medição parcial — nem verde, nem vermelho", () => {
+    const pouco = comCobertura(1.3, ["VALOR"]); // 15 de 40
+    expect(pouco.cobertura).toBeCloseTo(15 / 40, 6);
+    expect(seloDoRitmo(pouco)).toBe(SELO.PARCIAL);
+
+    const poucoERuim = comCobertura(0.2, ["VALOR"]);
+    // Nem "crítico": os dados não sustentam a afirmação em nenhuma direção.
+    expect(seloDoRitmo(poucoERuim)).toBe(SELO.PARCIAL);
+  });
+
+  it("exatamente no piso, o selo já vale", () => {
+    const noPiso = comCobertura(1.5, ["VALOR", "CONVERSAO", "CRM"]); // 21 de 40
+    expect(noPiso.cobertura).toBeGreaterThan(COBERTURA_MINIMA);
+    expect(seloDoRitmo(noPiso)).toBe(SELO.NO_RITMO);
+  });
+
+  it("o caso que motivou tudo: 104% sobre 22 contra 96% sobre 40", () => {
+    // Duas vendedoras, dois números que caem na mesma coluna do ranking.
+    const parcial = comCobertura(1.04, ["VALOR", "PARES"]);
+    const completa = comCobertura(0.96, ["VALOR", "PARES", "BOLSAS", "PA", "CONVERSAO", "CRM"]);
+
+    // O ritmo da parcial é maior — e é justamente por isso que a cobertura
+    // precisa viajar junto do número.
+    expect(parcial.valor!).toBeGreaterThan(completa.valor!);
+
+    // Os dois emitem selo (as duas passam do piso), mas com coberturas bem
+    // diferentes, e a tela é obrigada a mostrar isso.
+    expect(seloDoRitmo(parcial)).toBe(SELO.NO_RITMO);
+    expect(seloDoRitmo(completa)).toBe(SELO.ATENCAO);
+
+    expect(parcial.pesoMedido).toBe(22);
+    expect(completa.pesoMedido).toBe(40);
+    expect(parcial.cobertura).toBeLessThan(completa.cobertura);
   });
 
   it.each([
     [1.5, SELO.NO_RITMO],
     [1.0, SELO.NO_RITMO],
     [0.999, SELO.ATENCAO],
-    [0.9, SELO.ATENCAO],
     [0.8, SELO.ATENCAO],
     [0.799, SELO.CRITICO],
-    [0.5, SELO.CRITICO],
     [0, SELO.CRITICO],
-  ])("ritmo %s → selo %s", (ritmo, esperado) => {
-    expect(seloDoRitmo(ritmo)).toBe(esperado);
+  ])("com cobertura cheia, ritmo %s → selo %s", (pct, esperado) => {
+    const cheia = comCobertura(pct, ["VALOR", "PARES", "BOLSAS", "PA", "CONVERSAO", "CRM"]);
+    expect(seloDoRitmo(cheia)).toBe(esperado);
   });
 
   it("os cortes do brief: 100% e 80%", () => {
-    // "no ritmo" começa exatamente em 100%, "atenção" exatamente em 80%.
-    expect(seloDoRitmo(1)).toBe(SELO.NO_RITMO);
-    expect(seloDoRitmo(1 - 1e-9)).toBe(SELO.ATENCAO);
-    expect(seloDoRitmo(0.8)).toBe(SELO.ATENCAO);
-    expect(seloDoRitmo(0.8 - 1e-9)).toBe(SELO.CRITICO);
+    const todos: (keyof typeof TODOS)[] = ["VALOR", "PARES", "BOLSAS", "PA", "CONVERSAO", "CRM"];
+    expect(seloDoRitmo(comCobertura(1, todos))).toBe(SELO.NO_RITMO);
+    expect(seloDoRitmo(comCobertura(1 - 1e-9, todos))).toBe(SELO.ATENCAO);
+    expect(seloDoRitmo(comCobertura(0.8, todos))).toBe(SELO.ATENCAO);
+    expect(seloDoRitmo(comCobertura(0.8 - 1e-9, todos))).toBe(SELO.CRITICO);
+  });
+});
+
+describe("o próximo degrau e o retorno marginal", () => {
+  const valor = regraDe(Indicador.VALOR);
+  const conversao = regraDe(Indicador.CONVERSAO);
+
+  it("diz quanto falta para a próxima faixa e quanto isso vale", () => {
+    // 97% da meta até hoje: falta 3 pontos percentuais para virar meio ponto
+    // em ponto cheio.
+    const degrau = proximoDegrau({
+      regra: valor,
+      faixas: FAIXAS,
+      pct: 0.97,
+      metaProporcional: 10000,
+    });
+
+    expect(degrau).not.toBeNull();
+    expect(degrau!.faixaAtual).toBe(TipoFaixa.MEIO);
+    expect(degrau!.faixaAlvo).toBe(TipoFaixa.BASE);
+    expect(degrau!.pctAlvo).toBe(1);
+    expect(degrau!.faltaEmPct).toBeCloseTo(0.03, 6);
+    expect(degrau!.faltaNaMeta).toBeCloseTo(300, 6);
+    expect(degrau!.ganhoEmPontos).toBe(9.5); // de 0,5 para 10
+  });
+
+  it("na faixa mais alta não há degrau", () => {
+    const degrau = proximoDegrau({ regra: valor, faixas: FAIXAS, pct: 1.4, metaProporcional: 100 });
+    expect(degrau).toBeNull();
+  });
+
+  it("sem medição ou sem meta não há degrau", () => {
+    expect(proximoDegrau({ regra: valor, faixas: FAIXAS, pct: null, metaProporcional: 100 })).toBeNull();
+    expect(proximoDegrau({ regra: valor, faixas: FAIXAS, pct: 0.5, metaProporcional: 0 })).toBeNull();
+    expect(proximoDegrau({ regra: valor, faixas: FAIXAS, pct: 0.5, metaProporcional: null })).toBeNull();
+  });
+
+  it("o degrau de um piso exclusivo precisa ser ultrapassado, não alcançado", () => {
+    // Para sair da BASE e entrar na ALTA, 110% cravado não basta.
+    const degrau = proximoDegrau({ regra: valor, faixas: FAIXAS, pct: 1.05, metaProporcional: 100 });
+    expect(degrau!.faixaAlvo).toBe(TipoFaixa.ALTO);
+    expect(degrau!.pctAlvo).toBeGreaterThan(1.1);
+  });
+
+  it("recomenda por retorno, e não pelo indicador mais fraco", () => {
+    // Valor está péssimo — 60% — e longe de virar faixa.
+    const noValor = proximoDegrau({ regra: valor, faixas: FAIXAS, pct: 0.6, metaProporcional: 10000 });
+    // Conversão está a um fio de virar faixa, valendo menos pontos.
+    const naConversao = proximoDegrau({ regra: conversao, faixas: FAIXAS, pct: 0.99, metaProporcional: 0.6 });
+
+    const melhor = melhorDegrau([noValor, naConversao]);
+
+    // Ganha a Conversão: o esforço até a próxima faixa é muito menor.
+    expect(melhor!.indicador).toBe(Indicador.CONVERSAO);
+    expect(melhor!.faltaEmPct).toBeCloseTo(0.01, 6);
+    expect(noValor!.faltaEmPct).toBeCloseTo(0.35, 6); // 60% ainda longe dos 95%
+    expect(melhor!.retorno).toBeGreaterThan(noValor!.retorno * 10);
+
+    // E o indicador MAIS FRACO continua sendo o Valor. Os dois números apontam
+    // para lados diferentes, e é assim mesmo: um diz onde ela está, o outro
+    // diz onde mexer hoje. A tela precisa explicar isso em uma linha.
+    expect(noValor!.indicador).toBe(Indicador.VALOR);
+    expect(melhor!.indicador).not.toBe(noValor!.indicador);
+  });
+
+  it("quando o esforço é igual, ganha quem vale mais pontos", () => {
+    const noValor = proximoDegrau({ regra: valor, faixas: FAIXAS, pct: 0.98, metaProporcional: 100 });
+    const naConversao = proximoDegrau({ regra: conversao, faixas: FAIXAS, pct: 0.98, metaProporcional: 100 });
+
+    expect(melhorDegrau([naConversao, noValor])!.indicador).toBe(Indicador.VALOR);
+  });
+
+  it("sem nenhum degrau possível, não recomenda nada", () => {
+    expect(melhorDegrau([])).toBeNull();
+    expect(melhorDegrau([null, null])).toBeNull();
   });
 });

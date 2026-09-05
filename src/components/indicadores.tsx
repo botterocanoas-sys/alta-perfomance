@@ -1,7 +1,7 @@
 import { Indicador, SituacaoApuracao, TipoFaixa } from "@prisma/client";
 
 import type { LinhaDoRanking } from "@/lib/apuracao";
-import type { Selo } from "@/lib/pontuacao";
+import type { Ritmo, Selo } from "@/lib/pontuacao";
 
 export const reais = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 export const numero = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
@@ -28,12 +28,26 @@ const SELOS: Record<Selo, { texto: string; classe: string }> = {
   NO_RITMO: { texto: "no ritmo", classe: "border-ritmo text-ritmo" },
   ATENCAO: { texto: "atenção", classe: "border-atencao text-atencao" },
   CRITICO: { texto: "crítico", classe: "border-critico text-critico" },
+  PARCIAL: { texto: "medição parcial", classe: "border-tinta-3 text-tinta-2" },
 };
 
-export function SeloDoRitmo({ selo, ritmo }: { selo: Selo | null; ritmo: number | null }) {
+/**
+ * O selo, o percentual e — sempre — a cobertura da medição.
+ *
+ * A cobertura não é detalhe: o ritmo é uma média ponderada de quem foi medido,
+ * então o denominador varia de pessoa para pessoa. Exibir "104%" sem dizer
+ * "sobre 22 de 40 pontos" põe no mesmo lugar dois números que não se comparam.
+ */
+export function SeloDoRitmo({ selo, ritmo }: { selo: Selo | null; ritmo: Ritmo }) {
+  const cobertura =
+    ritmo.pesoTotal > 0 ? `${pontosBR.format(ritmo.pesoMedido)} de ${pontosBR.format(ritmo.pesoTotal)} pontos medidos` : null;
+
   if (!selo) {
     return (
-      <span className="rounded-full border border-linha px-2.5 py-0.5 font-sistema text-[11px] text-tinta-3">
+      <span
+        title={cobertura ?? undefined}
+        className="rounded-full border border-linha px-2.5 py-0.5 font-sistema text-[11px] text-tinta-3"
+      >
         sem dados
       </span>
     );
@@ -41,9 +55,19 @@ export function SeloDoRitmo({ selo, ritmo }: { selo: Selo | null; ritmo: number 
 
   const { texto, classe } = SELOS[selo];
   return (
-    <span className={`rounded-full border px-2.5 py-0.5 font-sistema text-[11px] font-semibold ${classe}`}>
-      {texto}
-      {ritmo !== null ? <span className="numeros ml-1.5 font-normal">{porcento.format(ritmo)}</span> : null}
+    <span className="inline-flex flex-wrap items-baseline gap-x-2">
+      <span
+        title={cobertura ?? undefined}
+        className={`rounded-full border px-2.5 py-0.5 font-sistema text-[11px] font-semibold ${classe}`}
+      >
+        {texto}
+        {ritmo.valor !== null ? (
+          <span className="numeros ml-1.5 font-normal">{porcento.format(ritmo.valor)}</span>
+        ) : null}
+      </span>
+      {cobertura ? (
+        <span className="font-sistema text-[11px] text-tinta-3">{cobertura}</span>
+      ) : null}
     </span>
   );
 }

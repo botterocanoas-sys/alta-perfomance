@@ -6,11 +6,12 @@ Grande do Sul — Barra, Padre e Park.
 A gerente abre a página da vendedora e vê, em trinta segundos, quanto ela
 ganhou ou perdeu de bônus, como está o mês e qual indicador atacar hoje.
 
-**Estado atual: etapa 5 de 10.** Login e isolamento por loja funcionando; a
+**Estado atual: etapa 6 de 10.** Login e isolamento por loja funcionando; a
 importação lê o relatório, confere contra a linha Subtotal e calcula o
 resultado de cada dia por diferença; o motor de pontos apura metas, faixas,
-pontos e bônus; o painel da loja mostra o resumo do mês e o ranking com selos.
-A tela da reunião é a etapa 6.
+pontos e bônus; o painel mostra o resumo do mês e o ranking; e a tela da
+reunião traz o veredito do dia, o que atacar hoje e o registro da conversa.
+Os insights são a etapa 7.
 
 ---
 
@@ -24,6 +25,7 @@ A tela da reunião é a etapa 6.
 | [`docs/04-importacao-e-delta.md`](docs/04-importacao-e-delta.md) | Como o arquivo é lido e como o resultado do dia é calculado |
 | [`docs/05-motor-de-pontos.md`](docs/05-motor-de-pontos.md) | Metas, faixas, pontos, bônus e o mapa dos denominadores |
 | [`docs/06-painel-da-loja.md`](docs/06-painel-da-loja.md) | As duas leituras de percentual, o ritmo e os selos |
+| [`docs/07-tela-da-reuniao.md`](docs/07-tela-da-reuniao.md) | A cobertura da medição, o retorno marginal e a tela da reunião |
 
 Se um número na tela parecer errado, a resposta está no `02`.
 
@@ -90,7 +92,8 @@ prisma/seed.ts         lojas, logins, metas e regras. NÃO cria vendedoras:
 
 src/lib/escopo.ts      ⭐ o isolamento por loja. Toda consulta passa por aqui
 src/lib/delta.ts       ⭐ o resultado do dia por diferença. Funções puras
-src/lib/pontuacao.ts   ⭐ faixas, rateio das metas e o mapa dos denominadores
+src/lib/pontuacao.ts   ⭐ faixas, rateio, mapa dos denominadores, ritmo e degraus
+src/lib/reuniao.ts     tudo que a tela da reunião precisa, numa leitura só
 src/lib/apuracao.ts    roda o motor sobre o banco e grava a apuração do dia
 src/lib/sessao.ts      login e ciclo de vida do token (sem depender do Next)
 src/lib/sessao-cookie.ts  a ponte com o cookie do navegador
@@ -105,7 +108,7 @@ src/app/(privado)/     tudo que exige sessão válida
   importar/            upload com prévia (só admin)
   conferencia/         acumulado e resultado do dia lado a lado
   pontos/              metas, percentuais, pontos e bônus do mês
-  vendedora/[id]/      a página individual (a reunião entra na etapa 6)
+  vendedora/[id]/      a tela da reunião: veredito, o que atacar, registro
 
 src/components/        pedaços de tela compartilhados (tabela, selo, formatos)
 
@@ -128,6 +131,10 @@ e2e/                   testes pelo navegador (Playwright)
    `SEM_MEDICAO` e a tela mostra "sem medição" — nunca 0%, que é medição de
    verdade. As duas rendem 0 ponto, mas dizem coisas diferentes.
 
+4. **Todo número agregado carrega o quanto ele mede.** O ritmo é média
+   ponderada de quem foi medido, então vem sempre com "X de 40 pontos
+   medidos". Abaixo de metade, o selo nem é emitido.
+
 ---
 
 ## O que falta
@@ -139,7 +146,7 @@ e2e/                   testes pelo navegador (Playwright)
 | 3 | ✅ Importação do relatório, parser e cálculo do delta |
 | 4 | ✅ Metas, motor de pontos e bônus |
 | 5 | ✅ Painel da loja |
-| 6 | Página da vendedora e registro da reunião |
+| 6 | ✅ Página da vendedora e registro da reunião |
 | 7 | Insights |
 | 8 | CRM manual e gerenciar vendedoras |
 | 9 | Acabamento visual, responsivo, estados vazios |

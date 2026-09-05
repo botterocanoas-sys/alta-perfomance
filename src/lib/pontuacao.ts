@@ -389,44 +389,182 @@ export function totalDePontosAlto(regras: Regra[]): number {
 // O ritmo do mês e os selos do ranking
 // ─────────────────────────────────────────────────────────────
 
-export const SELO = { NO_RITMO: "NO_RITMO", ATENCAO: "ATENCAO", CRITICO: "CRITICO" } as const;
+export const SELO = {
+  NO_RITMO: "NO_RITMO",
+  ATENCAO: "ATENCAO",
+  CRITICO: "CRITICO",
+  /** Medido em tão poucos indicadores que qualquer selo seria uma afirmação
+   *  que os dados não sustentam. */
+  PARCIAL: "PARCIAL",
+} as const;
 export type Selo = (typeof SELO)[keyof typeof SELO];
 
 /**
- * Um número só para dizer como a pessoa está no mês.
+ * Fração do peso total que precisa estar medida para o selo valer.
  *
- * O brief pede um selo por tendência, mas cada pessoa tem seis tendências —
- * uma por indicador. Juntamos numa média **ponderada pelos pontos que cada
- * indicador vale**: Valor pesa 15 e Conversão pesa 3, então ir mal no
- * faturamento derruba o ritmo mais do que ir mal na conversão. É a própria
- * régua do programa decidindo o peso, em vez de uma média simples que trataria
- * os seis como iguais.
+ * Metade: com 20 dos 40 pontos medidos ainda dá para dizer algo; com 15, um
+ * selo verde afirmaria mais do que os dados sustentam.
+ */
+export const COBERTURA_MINIMA = 0.5;
+
+export type Ritmo = {
+  /** Média das tendências ponderada pelos pontos. Nulo se nada foi medido. */
+  valor: number | null;
+  /** Soma dos pontos "alto" dos indicadores que tinham medição. */
+  pesoMedido: number;
+  /** Soma dos pontos "alto" de todos os indicadores ativos. */
+  pesoTotal: number;
+  /** `pesoMedido ÷ pesoTotal`. É o que decide se o selo pode ser emitido. */
+  cobertura: number;
+};
+
+/**
+ * Um número só para dizer como a pessoa está no mês — e o quanto ele vale.
  *
- * Indicadores sem medição ou fora da apuração não entram na conta: eles não
- * têm percentual, e contá-los como zero puniria a pessoa por ausência de dado.
- * Se nenhum indicador tiver percentual, o ritmo é nulo — sem selo.
+ * O brief pede um selo por tendência, mas cada pessoa tem seis tendências.
+ * Juntamos numa média **ponderada pelos pontos que cada indicador vale**:
+ * Valor pesa 15 e Conversão pesa 3, então ir mal no faturamento derruba o
+ * ritmo mais do que ir mal na conversão. É a régua do programa decidindo o
+ * peso, em vez de uma média simples que trataria os seis como iguais.
+ *
+ * Indicadores sem medição não entram na conta: contá-los como zero puniria a
+ * pessoa por ausência de dado. Mas isso faz o **denominador variar de pessoa
+ * para pessoa** — uma medida só em Valor e Pares tem ritmo sobre 22 pontos de
+ * peso, outra medida nos seis tem sobre 40. Os dois números não são
+ * comparáveis, e por isso `cobertura` viaja junto: quem exibe o ritmo é
+ * obrigado a exibir sobre quanto ele foi calculado.
  */
 export function ritmoDoMes(
   itens: { pct: number | null; situacao: Situacao; pontosAlto: number }[],
-): number | null {
-  const medidos = itens.filter(
+): Ritmo {
+  const ativos = itens.filter((item) => item.situacao !== SITUACAO.FORA_DA_APURACAO);
+  const medidos = ativos.filter(
     (item) => item.situacao === SITUACAO.APURADA && item.pct !== null && item.pontosAlto > 0,
   );
-  if (medidos.length === 0) return null;
 
-  const peso = medidos.reduce((soma, item) => soma + item.pontosAlto, 0);
-  if (peso <= 0) return null;
+  const pesoTotal = ativos.reduce((soma, item) => soma + item.pontosAlto, 0);
+  const pesoMedido = medidos.reduce((soma, item) => soma + item.pontosAlto, 0);
+  const cobertura = pesoTotal > 0 ? pesoMedido / pesoTotal : 0;
 
-  return medidos.reduce((soma, item) => soma + item.pct! * item.pontosAlto, 0) / peso;
+  if (pesoMedido <= 0) return { valor: null, pesoMedido, pesoTotal, cobertura };
+
+  const valor =
+    medidos.reduce((soma, item) => soma + item.pct! * item.pontosAlto, 0) / pesoMedido;
+
+  return { valor, pesoMedido, pesoTotal, cobertura };
 }
 
 /**
- * O selo do ranking, nos cortes do brief (seção 8.2):
- * "no ritmo" a partir de 100%, "atenção" de 80% a 99%, "crítico" abaixo de 80%.
+ * O selo do ranking, nos cortes do brief (seção 8.2): "no ritmo" a partir de
+ * 100%, "atenção" de 80% a 99%, "crítico" abaixo de 80%.
+ *
+ * Antes dos cortes vem a cobertura. Um ritmo de 104% calculado sobre 22 dos 40
+ * pontos não é "no ritmo": é uma leitura parcial que, colocada na mesma coluna
+ * de quem foi medida nos seis indicadores, inverteria o ranking por artefato de
+ * medição em vez de desempenho.
  */
-export function seloDoRitmo(ritmo: number | null): Selo | null {
-  if (ritmo === null) return null;
-  if (ritmo >= 1) return SELO.NO_RITMO;
-  if (ritmo >= 0.8) return SELO.ATENCAO;
+export function seloDoRitmo(ritmo: Ritmo): Selo | null {
+  if (ritmo.valor === null) return null;
+  if (ritmo.cobertura < COBERTURA_MINIMA) return SELO.PARCIAL;
+  if (ritmo.valor >= 1) return SELO.NO_RITMO;
+  if (ritmo.valor >= 0.8) return SELO.ATENCAO;
   return SELO.CRITICO;
+}
+
+// ─────────────────────────────────────────────────────────────
+// O próximo degrau: quanto falta para subir de faixa, e quanto vale
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * O que separa a pessoa da próxima faixa naquele indicador.
+ *
+ * A pergunta da reunião não é "onde ela está pior", é "onde mexer hoje rende
+ * mais". Um indicador a 40% da meta pode ser inalcançável no mês; um a 97%
+ * precisa de um empurrão pequeno para virar meio ponto em ponto cheio.
+ */
+export type Degrau = {
+  indicador: Indicador;
+  faixaAtual: TipoFaixa;
+  faixaAlvo: TipoFaixa;
+  /** Percentual que precisa alcançar para entrar na próxima faixa. */
+  pctAlvo: number;
+  /** Distância até lá, em fração da meta proporcional. Comparável entre indicadores. */
+  faltaEmPct: number;
+  /** A mesma distância na unidade da meta (reais, pares, ponto de razão). */
+  faltaNaMeta: number;
+  /** A meta até hoje, guardada para traduzir a falta em unidades reais. */
+  metaProporcional: number;
+  /** O valor que ela precisa alcançar, na unidade da meta. */
+  alvoNaMeta: number;
+  ganhoEmPontos: number;
+  /**
+   * Pontos ganhos por ponto percentual de esforço. É o que ordena o card
+   * "atacar hoje": ganho grande e distância curta ganham de ganho grande e
+   * distância longa.
+   */
+  retorno: number;
+};
+
+/**
+ * O degrau seguinte ao percentual atual, ou nulo quando já está na faixa mais
+ * alta (não há para onde subir) ou quando não houve medição.
+ */
+export function proximoDegrau(entrada: {
+  regra: Regra;
+  faixas: Faixa[];
+  pct: number | null;
+  metaProporcional: number | null;
+}): Degrau | null {
+  const { regra, faixas, pct, metaProporcional } = entrada;
+  if (pct === null || metaProporcional === null || metaProporcional <= 0) return null;
+  if (!regra.ativo) return null;
+
+  const atual = faixaDe(pct, faixas);
+  if (!atual) return null;
+
+  // A faixa seguinte é a de menor piso ainda acima de onde ela está.
+  const acima = faixas
+    .filter((faixa) => faixa.pctMin > atual.pctMin)
+    .sort((a, b) => a.pctMin - b.pctMin);
+  const alvo = acima[0];
+  if (!alvo) return null;
+
+  // O piso exclusivo precisa ser ultrapassado, não alcançado. Um centavo de
+  // percentual acima basta, e é o que a conta em unidades vai arredondar.
+  const pctAlvo = alvo.pctMinInclusivo ? alvo.pctMin : alvo.pctMin + 1e-9;
+  const faltaEmPct = pctAlvo - pct;
+  if (faltaEmPct <= 0) return null;
+
+  const ganhoEmPontos = pontosDaFaixa(alvo, regra) - pontosDaFaixa(atual, regra);
+  if (ganhoEmPontos <= 0) return null;
+
+  return {
+    indicador: regra.indicador,
+    faixaAtual: atual.tipo,
+    faixaAlvo: alvo.tipo,
+    pctAlvo,
+    faltaEmPct,
+    faltaNaMeta: faltaEmPct * metaProporcional,
+    metaProporcional,
+    alvoNaMeta: pctAlvo * metaProporcional,
+    ganhoEmPontos,
+    retorno: ganhoEmPontos / faltaEmPct,
+  };
+}
+
+/**
+ * Entre os degraus possíveis, o que rende mais por esforço.
+ *
+ * ⚠️ Isto **não** é o indicador mais fraco, e a diferença é de propósito. O
+ * ritmo diz onde a pessoa está; o retorno marginal diz onde mexer hoje. Os dois
+ * podem apontar direções opostas — quem está péssima em Valor e a um fio de
+ * virar faixa em Conversão deve atacar a Conversão hoje, mesmo que o Valor
+ * continue sendo o problema do mês. A tela precisa dizer isso em uma linha,
+ * senão parece que o app se contradiz.
+ */
+export function melhorDegrau(degraus: (Degrau | null)[]): Degrau | null {
+  const possiveis = degraus.filter((degrau): degrau is Degrau => degrau !== null);
+  if (possiveis.length === 0) return null;
+
+  return possiveis.reduce((melhor, degrau) => (degrau.retorno > melhor.retorno ? degrau : melhor));
 }

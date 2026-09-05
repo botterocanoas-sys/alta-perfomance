@@ -13,6 +13,7 @@ import {
   seloDoRitmo,
   somarComponentes,
   totalDePontosAlto,
+  type Ritmo,
   type Selo,
   type Componentes,
   type Faixa,
@@ -193,6 +194,7 @@ export async function recalcularApuracao(
       const dias = { decorridos: diasDecorridos(data), noMes: totalDeDiasDoMes };
       const doDia = resultados.filter((r) => r.data.getTime() === tempo);
 
+      // "Da loja" = tudo que a loja vendeu, com a trava manual respeitada.
       const acumuladoDasAtivas: Componentes[] = [];
       const componentesDoDiaDasAtivas: Componentes[] = [];
 
@@ -217,12 +219,19 @@ export async function recalcularApuracao(
         acumuladoPorVendedora.set(resultado.vendedoraId, acumulado);
 
         const metaValor = metaValorDoMes.get(resultado.vendedoraId) ?? 0;
-        const estaAtiva = metaValor > 0 && vendedora.contaComoVendedora;
 
-        if (estaAtiva) {
+        // O realizado da LOJA é o total da loja, e não só o de quem está no
+        // programa: uma vendedora sem meta neste mês ainda vende, e a venda
+        // dela é da loja. É o que a linha "Subtotal" do relatório soma, e é
+        // sobre esse total que a gerente é remunerada.
+        //
+        // A trava manual `contaComoVendedora` continua valendo: ela existe
+        // justamente para tirar do total as linhas que não são vendedoras.
+        if (vendedora.contaComoVendedora) {
           acumuladoDasAtivas.push(acumulado);
           componentesDoDiaDasAtivas.push(componentesDoDia);
         }
+        void metaValor;
 
         const metas = metasDaVendedora({
           metaValorDaVendedora: vendedora.contaComoVendedora ? metaValor : 0,
@@ -284,7 +293,7 @@ export async function recalcularApuracao(
         }
       }
 
-      // A loja: só quem está no programa entra no numerador e no denominador.
+      // A loja: o total dela contra a meta cheia dela.
       const acumuladoDaLoja = somarComponentes(acumuladoDasAtivas);
       const apuradoDaLoja = apurarTudo({
         regras,
@@ -342,8 +351,8 @@ export type LinhaDoRanking = {
   recebeBonusVendedora: boolean;
   pontos: number;
   bonusReais: number;
-  /** Média das tendências, ponderada pelos pontos de cada indicador. */
-  ritmo: number | null;
+  /** Média das tendências ponderada pelos pontos, com a cobertura da medição. */
+  ritmo: Ritmo;
   selo: Selo | null;
   porIndicador: {
     indicador: Indicador;
@@ -365,7 +374,7 @@ export type ApuracaoDaLoja = {
   gerente: {
     pontos: number;
     bonusReais: number;
-    ritmo: number | null;
+    ritmo: Ritmo;
     selo: Selo | null;
     porIndicador: LinhaDoRanking["porIndicador"];
   } | null;
@@ -417,7 +426,12 @@ export async function lerApuracao(
   const pesar = (itens: LinhaDoRanking["porIndicador"]) =>
     itens.map((item) => ({
       pct: item.pct,
-      situacao: item.situacao === SituacaoApuracao.APURADA ? SITUACAO.APURADA : SITUACAO.SEM_MEDICAO,
+      situacao:
+        item.situacao === SituacaoApuracao.APURADA
+          ? SITUACAO.APURADA
+          : item.situacao === SituacaoApuracao.SEM_MEDICAO
+            ? SITUACAO.SEM_MEDICAO
+            : SITUACAO.FORA_DA_APURACAO,
       pontosAlto: pontosAltoPorIndicador.get(item.indicador) ?? 0,
     }));
 
@@ -432,7 +446,7 @@ export async function lerApuracao(
         recebeBonusVendedora: linha.vendedora.recebeBonusVendedora,
         pontos: 0,
         bonusReais: 0,
-        ritmo: null,
+        ritmo: { valor: null, pesoMedido: 0, pesoTotal: 0, cobertura: 0 },
         selo: null,
         porIndicador: [],
       } satisfies LinhaDoRanking);
@@ -464,12 +478,16 @@ export async function lerApuracao(
     pontos: linha.pontos.toNumber(),
   }));
 
+  const ritmoDaLoja = ritmoDoMes(pesar(indicadoresDaLoja));
+
   const vendedoras = [...porVendedora.values()]
     .map((linha) => {
       const ritmo = ritmoDoMes(pesar(linha.porIndicador));
       return { ...linha, ritmo, selo: seloDoRitmo(ritmo) };
     })
-    .sort((a, b) => b.pontos - a.pontos || (b.ritmo ?? -1) - (a.ritmo ?? -1));
+    // Pontos primeiro: é a régua do programa, e não varia com a cobertura.
+    // O ritmo só desempata.
+    .sort((a, b) => b.pontos - a.pontos || (b.ritmo.valor ?? -1) - (a.ritmo.valor ?? -1));
 
   return {
     data: maisRecente,
@@ -480,8 +498,8 @@ export async function lerApuracao(
       ? {
           pontos: daLoja.reduce((soma, linha) => soma + linha.pontos.toNumber(), 0),
           bonusReais: daLoja.reduce((soma, linha) => soma + linha.bonusReais.toNumber(), 0),
-          ritmo: ritmoDoMes(pesar(indicadoresDaLoja)),
-          selo: seloDoRitmo(ritmoDoMes(pesar(indicadoresDaLoja))),
+          ritmo: ritmoDaLoja,
+          selo: seloDoRitmo(ritmoDaLoja),
           porIndicador: daLoja.map((linha) => ({
             indicador: linha.indicador,
             situacao: linha.situacao,

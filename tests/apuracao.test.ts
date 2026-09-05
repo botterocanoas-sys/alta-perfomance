@@ -401,3 +401,72 @@ describe("quando falta cadastro", () => {
     expect(resumo.pontuacaoDesbalanceada[0]).toMatchObject({ loja: "Barra", soma: 45, esperado: 40 });
   });
 });
+
+describe("o total da loja é o total da loja", () => {
+  const ANTERIOR = "tests/fixtures/relatorio-exemplo-15h54.xlsx";
+
+  it("inclui quem vendeu sem ter meta neste mês", async () => {
+    // Na extração das 15h54, uma vendedora da Barra tem Meta 0 e vendeu
+    // R$ 289,90. Ela está fora do programa — não pontua, não entra no rateio —
+    // mas a venda dela é da loja, e a gerente é remunerada pelo total da loja.
+    await importar(readFileSync(ANTERIOR), "15h54.xlsx", DIA_3);
+
+    const barra = await lojaPorSlug("barra");
+    const valorDaLoja = await prisma.apuracaoLojaDia.findUniqueOrThrow({
+      where: { lojaId_data_indicador: { lojaId: barra.id, data: DIA_3, indicador: Indicador.VALOR } },
+    });
+
+    // É o Subtotal do relatório: 2.229,33 + 2.474,29 + 3.317,245 + 289,90.
+    expect(valorDaLoja.acumulado!.toNumber()).toBeCloseTo(8310.765, 2);
+
+    // Sem ela seriam 8.020,865 — o número que sairia se a loja fosse só a soma
+    // de quem está no programa.
+    expect(valorDaLoja.acumulado!.toNumber()).not.toBeCloseTo(8020.865, 2);
+  });
+
+  it("mas ela continua fora da apuração individual e do rateio", async () => {
+    await importar(readFileSync(ANTERIOR), "15h54.xlsx", DIA_3);
+
+    const barra = await lojaPorSlug("barra");
+    const marilia = await prisma.vendedora.findUniqueOrThrow({
+      where: { lojaId_nome: { lojaId: barra.id, nome: "MARILIA" } },
+    });
+    const linhas = await prisma.apuracaoDia.findMany({
+      where: { vendedoraId: marilia.id, data: DIA_3 },
+    });
+
+    expect(linhas).toHaveLength(6);
+    expect(linhas.every((l) => l.situacao === SituacaoApuracao.FORA_DA_APURACAO)).toBe(true);
+    expect(linhas.every((l) => l.pontos.toNumber() === 0)).toBe(true);
+
+    // O rateio de Pares continua dividido entre as três com meta.
+    const comMeta = await prisma.apuracaoDia.findMany({
+      where: { data: DIA_3, indicador: Indicador.PARES, vendedora: { lojaId: barra.id }, meta: { not: null } },
+    });
+    const soma = comMeta.reduce((total, l) => total + l.meta!.toNumber(), 0);
+    expect(comMeta).toHaveLength(3);
+    expect(soma).toBeCloseTo(340, 2);
+  });
+
+  it("a trava manual tira a linha do total da loja", async () => {
+    await importar(readFileSync(ANTERIOR), "15h54.xlsx", DIA_3);
+
+    const barra = await lojaPorSlug("barra");
+    const marilia = await prisma.vendedora.findUniqueOrThrow({
+      where: { lojaId_nome: { lojaId: barra.id, nome: "MARILIA" } },
+    });
+
+    await prisma.vendedora.update({
+      where: { id: marilia.id },
+      data: { contaComoVendedora: false },
+    });
+    await recalcularApuracao(prisma, MES, [barra.id]);
+
+    const valorDaLoja = await prisma.apuracaoLojaDia.findUniqueOrThrow({
+      where: { lojaId_data_indicador: { lojaId: barra.id, data: DIA_3, indicador: Indicador.VALOR } },
+    });
+
+    // Agora sim a venda dela sai do total: é para isso que a trava existe.
+    expect(valorDaLoja.acumulado!.toNumber()).toBeCloseTo(8020.865, 2);
+  });
+});

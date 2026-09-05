@@ -23,6 +23,9 @@ import { CABECALHO, CHAVES, montarRelatorio } from "./planilha";
 const ARQUIVO_DE_EXEMPLO = "tests/fixtures/relatorio-exemplo-18h39.xlsx";
 const exemplo = () => readFileSync(ARQUIVO_DE_EXEMPLO);
 
+/** Uma extração anterior do mesmo dia, com os blocos em outra ordem. */
+const ARQUIVO_ANTERIOR = "tests/fixtures/relatorio-exemplo-15h54.xlsx";
+
 describe("o arquivo de exemplo", () => {
   it("acha o cabeçalho, que não está na linha 1", () => {
     const relatorio = lerRelatorio(exemplo());
@@ -149,6 +152,60 @@ describe("o arquivo de exemplo", () => {
     const comAcento = nomes.find((linha) => linha.nome.includes("Ô") || linha.nome.includes("Ã"));
     expect(comAcento, "o arquivo de exemplo precisa ter ao menos um nome acentuado").toBeDefined();
     expect(comAcento!.nomeNormalizado).not.toMatch(/[ÔÃ]/);
+  });
+});
+
+describe("duas extrações reais do mesmo dia", () => {
+  it("trazem os blocos em ordens diferentes", () => {
+    const cedo = lerRelatorio(readFileSync(ARQUIVO_ANTERIOR));
+    const tarde = lerRelatorio(exemplo());
+
+    const ordem = (r: ReturnType<typeof lerRelatorio>) => r.blocos.map((b) => b.chave);
+
+    expect(ordem(cedo)).toEqual([
+      normalizar(CHAVES.park),
+      normalizar(CHAVES.padre),
+      normalizar(CHAVES.barra),
+    ]);
+    expect(ordem(tarde)).toEqual([
+      normalizar(CHAVES.padre),
+      normalizar(CHAVES.park),
+      normalizar(CHAVES.barra),
+    ]);
+
+    // A ordem muda entre extrações do MESMO relatório, no mesmo dia. É por isso
+    // que o parser procura o bloco pelo texto da célula e nunca por posição.
+    expect(ordem(cedo)).not.toEqual(ordem(tarde));
+  });
+
+  it("as duas são lidas com as mesmas três lojas", () => {
+    for (const arquivo of [ARQUIVO_ANTERIOR, ARQUIVO_DE_EXEMPLO]) {
+      const relatorio = lerRelatorio(readFileSync(arquivo));
+      expect(relatorio.blocos.map((b) => b.chave).sort(), arquivo).toEqual(
+        [normalizar(CHAVES.barra), normalizar(CHAVES.padre), normalizar(CHAVES.park)].sort(),
+      );
+    }
+  });
+
+  it("a extração anterior tem uma vendedora com meta zero que vendeu", () => {
+    const cedo = lerRelatorio(readFileSync(ARQUIVO_ANTERIOR));
+    const barra = cedo.blocos.find((b) => b.chave === normalizar(CHAVES.barra))!;
+
+    const semMetaMasVendeu = barra.vendedores.filter(
+      (linha) => linha.metaValor === 0 && linha.valor > 0,
+    );
+
+    expect(semMetaMasVendeu).toHaveLength(1);
+    expect(semMetaMasVendeu[0].valor).toBeCloseTo(289.9, 2);
+
+    // E o Subtotal da loja INCLUI a venda dela: o total da loja é tudo que a
+    // loja vendeu, não só o de quem está no programa.
+    const somaDasComMeta = barra.vendedores
+      .filter((l) => l.metaValor > 0)
+      .reduce((soma, l) => soma + l.valor, 0);
+
+    expect(barra.subtotal!.valor).toBeCloseTo(somaDasComMeta + 289.9, 2);
+    expect(barra.subtotal!.valor).not.toBeCloseTo(somaDasComMeta, 2);
   });
 });
 

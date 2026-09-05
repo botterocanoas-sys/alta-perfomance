@@ -106,9 +106,13 @@ test.describe("página da vendedora", () => {
     await page.getByRole("link", { name: /pts/ }).first().click();
 
     await expect(page).toHaveURL(/\/vendedora\//);
+
+    // Escopado à tabela dos indicadores: a de consistência repete os mesmos
+    // nomes na primeira coluna.
+    const tabela = page.getByRole("table").first();
     for (const indicador of ["Valor", "Pares", "Bolsas", "P.A.", "Conversão", "CRM"]) {
-      await expect(page.getByRole("cell", { name: indicador, exact: true })).toBeVisible();
+      await expect(tabela.getByRole("cell", { name: indicador, exact: true })).toBeVisible();
     }
-    await expect(page.getByText("Projeção, não bônus garantido.")).toBeVisible();
+    await expect(page.getByText(/A apuração fecha no último dia do mês/)).toBeVisible();
   });
 });
