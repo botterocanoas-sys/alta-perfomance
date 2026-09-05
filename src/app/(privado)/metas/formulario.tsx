@@ -7,6 +7,7 @@ import { useFormStatus } from "react-dom";
 import { ROTULO_DO_INDICADOR } from "@/components/indicadores";
 
 import { salvarMetas, type EstadoDasMetas } from "./acoes";
+import { Rolagem } from "@/components/rolagem";
 
 const INICIAL: EstadoDasMetas = { erro: null, feito: null };
 
@@ -168,11 +169,11 @@ export function FormularioDeMetas({
           A distribuição pode mudar todo mês conforme a estratégia; o total, não.
         </p>
 
-        <div className="mt-3 overflow-x-auto border border-linha bg-papel">
+        <Rolagem className="mt-3 border border-linha bg-papel" classeDaDica="px-4">
           <table className="w-full min-w-[480px] text-sm">
             <thead>
               <tr className="rotulo border-b border-tinta-3">
-                <th className="px-4 py-2 text-left font-normal">Indicador</th>
+                <th className="col-fixa px-4 py-2 text-left font-normal">Indicador</th>
                 <th className="px-3 py-2 text-right font-normal">Base (100% a 110%)</th>
                 <th className="px-3 py-2 text-right font-normal">Alto (acima de 110%)</th>
                 <th className="px-3 py-2 text-center font-normal">No programa</th>
@@ -181,7 +182,9 @@ export function FormularioDeMetas({
             <tbody>
               {pontos.map((linha) => (
                 <tr key={linha.indicador} className="border-b border-linha last:border-b-0">
-                  <td className="px-4 py-2.5 text-tinta">{ROTULO_DO_INDICADOR[linha.indicador]}</td>
+                  <td className="col-fixa px-4 py-2.5 text-tinta">
+                    {ROTULO_DO_INDICADOR[linha.indicador]}
+                  </td>
                   <td className="px-3 py-2 text-right">
                     <input
                       name={`base:${linha.indicador}`}
@@ -205,23 +208,26 @@ export function FormularioDeMetas({
                     />
                   </td>
                   <td className="px-3 py-2 text-center">
-                    <input
-                      type="checkbox"
-                      name={`ativo:${linha.indicador}`}
-                      value="sim"
-                      aria-label={`${ROTULO_DO_INDICADOR[linha.indicador]} no programa`}
-                      checked={linha.ativo}
-                      onChange={(evento) =>
-                        atualizar(linha.indicador, "ativo", evento.target.checked)
-                      }
-                    />
+                    {/* O rótulo envolve a caixa para o dedo ter onde acertar. */}
+                    <label className="inline-flex h-11 items-center justify-center px-3">
+                      <input
+                        type="checkbox"
+                        name={`ativo:${linha.indicador}`}
+                        value="sim"
+                        aria-label={`${ROTULO_DO_INDICADOR[linha.indicador]} no programa`}
+                        checked={linha.ativo}
+                        onChange={(evento) =>
+                          atualizar(linha.indicador, "ativo", evento.target.checked)
+                        }
+                      />
+                    </label>
                     <input type="hidden" name={`ativo:${linha.indicador}`} value="nao" />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </Rolagem>
 
         <p
           role="status"

@@ -63,6 +63,55 @@ describe("as três faixas de ritmo da seção 9", () => {
     expect(prioridade!.texto).toContain("38 pares");
   });
 
+  it("só um indicador é a maior distância; empate no pior não dá o título a ninguém", () => {
+    // Dois indicadores parados no mesmo lugar: nenhum dos dois é "a maior".
+    const empate = gerarInsights(
+      entrada({
+        porIndicador: [
+          indicador(Indicador.BOLSAS, 0, { acumulado: 0, metaProporcional: 1 }),
+          indicador(Indicador.CRM, 0, { acumulado: 0, metaProporcional: 0.2 }),
+          indicador(Indicador.VALOR, 0.45, { acumulado: 45, metaProporcional: 100 }),
+        ],
+      }),
+    );
+
+    const prioridades = empate.filter((i) => i.tom === TOM.PRIORIDADE);
+    expect(prioridades.length).toBeGreaterThan(1);
+    expect(prioridades.filter((i) => i.texto.includes("a maior distância"))).toHaveLength(0);
+
+    // Com um pior sozinho, o superlativo é dele e de mais ninguém.
+    const comPior = gerarInsights(
+      entrada({
+        porIndicador: [
+          indicador(Indicador.BOLSAS, 0.1, { acumulado: 1, metaProporcional: 10 }),
+          indicador(Indicador.VALOR, 0.45, { acumulado: 45, metaProporcional: 100 }),
+        ],
+      }),
+    );
+
+    const comSuperlativo = comPior
+      .filter((i) => i.tom === TOM.PRIORIDADE)
+      .filter((i) => i.texto.includes("a maior distância"));
+    expect(comSuperlativo).toHaveLength(1);
+    expect(comSuperlativo[0].indicador).toBe(Indicador.BOLSAS);
+  });
+
+  it("o verbo concorda com o número: falta 1 bolsa, faltam 3", () => {
+    const uma = gerarInsights(
+      entrada({
+        porIndicador: [indicador(Indicador.BOLSAS, 0.2, { acumulado: 1, metaProporcional: 2 })],
+      }),
+    );
+    expect(uma.find((i) => i.tom === TOM.PRIORIDADE)!.texto).toContain("falta 1 bolsa");
+
+    const varias = gerarInsights(
+      entrada({
+        porIndicador: [indicador(Indicador.BOLSAS, 0.2, { acumulado: 1, metaProporcional: 4 })],
+      }),
+    );
+    expect(varias.find((i) => i.tom === TOM.PRIORIDADE)!.texto).toContain("faltam 3 bolsas");
+  });
+
   it("de 80% a 100% diz quanto falta POR DIA nos dias que sobram", () => {
     const insights = gerarInsights(
       entrada({

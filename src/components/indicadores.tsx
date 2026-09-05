@@ -1,6 +1,7 @@
 import { Indicador, SituacaoApuracao, TipoFaixa } from "@prisma/client";
 
 import type { LinhaDoRanking } from "@/lib/apuracao";
+import { Rolagem } from "@/components/rolagem";
 import type { Ritmo, Selo } from "@/lib/pontuacao";
 
 export const reais = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -115,11 +116,11 @@ export function TabelaDeIndicadores({
   comMetaDoMes?: boolean;
 }) {
   return (
-    <div className="overflow-x-auto">
+    <Rolagem>
       <table className="w-full min-w-[600px] text-sm">
         <thead>
           <tr className="rotulo border-b border-linha">
-            <th className="py-2 pr-3 text-left font-normal">Indicador</th>
+            <th className="col-fixa py-2 pr-3 text-left font-normal">Indicador</th>
             <th className="px-3 py-2 text-right font-normal">Meta do mês</th>
             <th className="px-3 py-2 text-right font-normal">Realizado</th>
             {comMetaDoMes ? (
@@ -138,7 +139,9 @@ export function TabelaDeIndicadores({
 
             return (
               <tr key={item.indicador} className="border-b border-linha last:border-b-0">
-                <td className="py-2 pr-3 text-tinta">{ROTULO_DO_INDICADOR[item.indicador]}</td>
+                <td className="col-fixa py-2 pr-3 text-tinta">
+                  {ROTULO_DO_INDICADOR[item.indicador]}
+                </td>
                 <td className="numeros px-3 py-2 text-right text-tinta-3">
                   {formatarIndicador(item.indicador, item.meta)}
                 </td>
@@ -161,6 +164,6 @@ export function TabelaDeIndicadores({
           })}
         </tbody>
       </table>
-    </div>
+    </Rolagem>
   );
 }

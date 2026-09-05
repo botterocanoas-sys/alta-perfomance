@@ -19,6 +19,7 @@ import { sessaoAtual } from "@/lib/sessao-cookie";
 import { TOM, type Tom } from "@/lib/insights";
 
 import { FormularioDaReuniao } from "./formulario-da-reuniao";
+import { Rolagem } from "@/components/rolagem";
 
 /** A cor da borda diz o tom da frase sem precisar de rótulo. */
 const CORES_DO_TOM: Record<Tom, string> = {
@@ -48,6 +49,10 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
   try {
     vendedora = await exigirAcessoAVendedora(sessao, id);
   } catch (erro) {
+    // Vendedora de outra loja responde igualzinho a vendedora que não existe:
+    // mesma tela e mesmo 404. Por isso esta rota não tem `loading.tsx` — o
+    // esqueleto faria o Next despachar 200 antes de chegar aqui, e o status
+    // deixaria de dizer a mesma coisa nos dois casos.
     if (erro instanceof AcessoNegado) notFound();
     throw erro;
   }
@@ -200,7 +205,7 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
                 Pontos projetados a cada dia, e o que ela vendeu naquele dia.
               </p>
 
-              <div className="mt-3 overflow-x-auto border border-linha bg-papel p-5">
+              <Rolagem className="mt-3 border border-linha bg-papel p-5">
                 <div className="flex min-w-[340px] items-end justify-between gap-2" role="img"
                   aria-label={`Pontos por dia: ${dados.grafico
                     .map((p) => `${formatarDia(p.data)}, ${pontosBR.format(p.pontos)} pontos`)
@@ -228,7 +233,7 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
                     </div>
                   ))}
                 </div>
-              </div>
+              </Rolagem>
             </section>
           ) : null}
 
@@ -236,11 +241,11 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
           <section>
             <h2 className="text-xl font-bold tracking-tight text-tinta">Os seis indicadores</h2>
 
-            <div className="mt-3 overflow-x-auto border border-linha bg-papel">
+            <Rolagem className="mt-3 border border-linha bg-papel" classeDaDica="px-4">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="rotulo border-b border-tinta-3">
-                    <th className="px-4 py-2 text-left font-normal">Indicador</th>
+                    <th className="col-fixa px-4 py-2 text-left font-normal">Indicador</th>
                     <th className="px-3 py-2 text-right font-normal">Meta do mês</th>
                     <th className="px-3 py-2 text-right font-normal">Realizado</th>
                     <th className="px-3 py-2 text-right font-normal">Ritmo</th>
@@ -256,7 +261,7 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
 
                     return (
                       <tr key={item.indicador} className="border-b border-linha last:border-b-0">
-                        <td className="px-4 py-2.5 text-tinta">
+                        <td className="col-fixa px-4 py-2.5 text-tinta">
                           {ROTULO_DO_INDICADOR[item.indicador]}
                         </td>
                         <td className="numeros px-3 py-2.5 text-right text-tinta-3">
@@ -298,7 +303,7 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
                   })}
                 </tbody>
               </table>
-            </div>
+            </Rolagem>
 
             <p className="mt-2 font-sistema text-xs text-tinta-3">
               A seta compara com o ritmo de sete dias atrás. &ldquo;Sem base&rdquo; é quando não
@@ -314,11 +319,11 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
               ritmo, que olha o acumulado.
             </p>
 
-            <div className="mt-3 overflow-x-auto border border-linha bg-papel">
+            <Rolagem className="mt-3 border border-linha bg-papel" classeDaDica="px-4">
               <table className="w-full min-w-[520px] text-sm">
                 <thead>
                   <tr className="rotulo border-b border-tinta-3">
-                    <th className="px-4 py-2 text-left font-normal">Indicador</th>
+                    <th className="col-fixa px-4 py-2 text-left font-normal">Indicador</th>
                     <th className="px-3 py-2 text-right font-normal">Acima de 110%</th>
                     <th className="px-3 py-2 text-right font-normal">100% a 110%</th>
                     <th className="px-3 py-2 text-right font-normal">Abaixo de 95%</th>
@@ -328,7 +333,7 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
                 <tbody>
                   {dados.consistencia.map((item) => (
                     <tr key={item.indicador} className="border-b border-linha last:border-b-0">
-                      <td className="px-4 py-2.5 text-tinta">
+                      <td className="col-fixa px-4 py-2.5 text-tinta">
                         {ROTULO_DO_INDICADOR[item.indicador]}
                       </td>
                       <td className="numeros px-3 py-2.5 text-right text-ritmo">{item.acimaDe110}</td>
@@ -345,7 +350,7 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
                   ))}
                 </tbody>
               </table>
-            </div>
+            </Rolagem>
           </section>
         </>
       )}
@@ -421,12 +426,6 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
         </section>
       ) : null}
 
-      <section className="border-l-2 border-vinho bg-vinho-claro px-4 py-3">
-        <p className="font-sistema text-sm text-tinta-2">
-          Etapa 7 de 10. Lançar CRM e gerenciar vendedoras são a etapa 8; o acabamento visual, a
-          etapa 9.
-        </p>
-      </section>
     </div>
   );
 }

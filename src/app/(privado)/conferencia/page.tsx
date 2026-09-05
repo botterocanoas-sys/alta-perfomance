@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { formatarDia } from "@/lib/data";
 import { ehAdmin, lojaEmFoco } from "@/lib/escopo";
 import { sessaoAtual } from "@/lib/sessao-cookie";
+import { Rolagem } from "@/components/rolagem";
 
 export const metadata = { title: "Conferência · Alta Performance" };
 
@@ -177,11 +178,11 @@ export default async function Conferencia({
                 Nenhuma vendedora com meta neste dia.
               </p>
             ) : (
-              <div className="mt-3 overflow-x-auto border border-linha bg-papel">
+              <Rolagem className="mt-3 border border-linha bg-papel" classeDaDica="px-4">
                 <table className="w-full min-w-[860px] text-sm">
                   <thead>
                     <tr className="rotulo border-b border-tinta-3">
-                      <th className="px-4 py-2 text-left font-normal">Vendedora</th>
+                      <th className="col-fixa px-4 py-2 text-left font-normal">Vendedora</th>
                       <th className="px-3 py-2 text-right font-normal">Acum. valor</th>
                       <th className="px-3 py-2 text-right font-normal">Valor do dia</th>
                       <th className="px-3 py-2 text-right font-normal">Pares</th>
@@ -198,7 +199,7 @@ export default async function Conferencia({
                       const acumulado = acumuladoPorVendedora.get(linha.vendedoraId);
                       return (
                         <tr key={linha.id} className="border-b border-linha last:border-b-0">
-                          <td className="px-4 py-2.5 text-tinta">
+                          <td className="col-fixa px-4 py-2.5 text-tinta">
                             {linha.vendedora.nome}
                             {linha.importacaoBaseId === null ? (
                               <span className="ml-2 font-sistema text-[11px] text-tinta-3">
@@ -226,7 +227,7 @@ export default async function Conferencia({
                     })}
                   </tbody>
                 </table>
-              </div>
+              </Rolagem>
             )}
 
             <div className="mt-3 flex flex-col gap-1 font-sistema text-xs text-tinta-3">

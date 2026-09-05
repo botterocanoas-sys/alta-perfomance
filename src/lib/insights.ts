@@ -76,6 +76,18 @@ function quantidade(indicador: Indicador, valor: number): string {
 }
 
 /**
+ * Concordância do verbo com o número que vem logo depois: "falta 1 bolsa",
+ * "faltam 3 bolsas". Sem isto a frase sai errada justo no caso mais comum da
+ * conversa, que é faltar uma peça só.
+ */
+function faltaOuFaltam(indicador: Indicador, valor: number): "falta" | "faltam" {
+  if (indicador === Indicador.PARES || indicador === Indicador.BOLSAS) {
+    return Math.max(1, Math.ceil(valor - 1e-9)) === 1 ? "falta" : "faltam";
+  }
+  return valor <= 1 ? "falta" : "faltam";
+}
+
+/**
  * As leituras possíveis quando um indicador vai muito melhor que outro.
  *
  * São hipóteses de venda, não diagnósticos: a mesma combinação de números pode
@@ -147,6 +159,12 @@ export function gerarInsights(entrada: EntradaDosInsights): Insight[] {
 function frasesDeRitmo(entrada: EntradaDosInsights): Insight[] {
   const diasQueFaltam = Math.max(0, entrada.diasDoMes - entrada.diasDecorridos);
 
+  // Só um indicador pode ser "a maior distância". Se dois empatam no pior
+  // ritmo, ninguém leva o superlativo: a frase seria falsa nos dois.
+  const ritmos = medidos(entrada.porIndicador).map((item) => item.pct!);
+  const pior = Math.min(...ritmos);
+  const soUmNoPior = ritmos.filter((ritmo) => ritmo === pior).length === 1;
+
   return medidos(entrada.porIndicador).flatMap((item): Insight[] => {
     const ritmo = item.pct!;
     const rotulo = ROTULO[item.indicador];
@@ -158,6 +176,11 @@ function frasesDeRitmo(entrada: EntradaDosInsights): Insight[] {
           ? item.metaProporcional - item.acumulado
           : null;
 
+      const abertura =
+        soUmNoPior && ritmo === pior
+          ? `${rotulo} está em ${pct.format(ritmo)} do ritmo — a maior distância dela hoje.`
+          : `${rotulo} está em ${pct.format(ritmo)} do ritmo do mês.`;
+
       return [
         {
           chave: `prioridade-${item.indicador}`,
@@ -166,8 +189,8 @@ function frasesDeRitmo(entrada: EntradaDosInsights): Insight[] {
           peso: 100 + (0.8 - ritmo) * 100,
           texto:
             falta !== null && falta > 0
-              ? `${rotulo} está em ${pct.format(ritmo)} do ritmo — a maior distância dela hoje. Para voltar ao ritmo faltam ${quantidade(item.indicador, falta)}.`
-              : `${rotulo} está em ${pct.format(ritmo)} do ritmo — a maior distância dela hoje.`,
+              ? `${abertura} Para voltar ao ritmo ${faltaOuFaltam(item.indicador, falta)} ${quantidade(item.indicador, falta)}.`
+              : abertura,
         },
       ];
     }

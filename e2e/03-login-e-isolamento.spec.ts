@@ -122,6 +122,14 @@ test.describe("isolamento por loja no navegador", () => {
     await seletor.getByRole("link", { name: "Park" }).click();
     await expect(page.getByRole("heading", { name: "Park", level: 1 })).toBeVisible();
     await expect(page.getByText(NO_RANKING.park)).toBeVisible();
+
+    // A terceira troca é a que importa: já houve uma navegação em cima da
+    // outra. Um `loading.tsx` no painel fazia o Next reaproveitar o conteúdo da
+    // loja anterior — a URL virava a da Park e a tela continuava na Padre.
+    await seletor.getByRole("link", { name: "Barra" }).click();
+    await expect(page.getByRole("heading", { name: "Barra", level: 1 })).toBeVisible();
+    await expect(page.getByText(NO_RANKING.barra)).toBeVisible();
+    await expect(page.getByText(NO_RANKING.padre)).toHaveCount(0);
   });
 });
 

@@ -94,11 +94,37 @@ test.describe("gerenciar vendedoras", () => {
     await primeira.getByLabel("recebe bônus individual").uncheck();
     await primeira.getByRole("button", { name: "Salvar" }).click();
 
-    await expect(primeira.getByRole("status")).toContainText("recalculados");
+    // A confirmação fica acima da lista, não dentro da linha: arquivar tira a
+    // linha da lista, e o aviso não pode sumir junto.
+    await expect(page.locator("main").getByRole("status")).toContainText("recalculados");
 
     await page.reload();
     const depois = page.getByRole("listitem").filter({ has: page.getByRole("button", { name: "Salvar" }) }).first();
     await expect(depois.getByLabel("recebe bônus individual")).not.toBeChecked();
+  });
+
+  test("arquivar tira a linha da lista sem levar a confirmação junto", async ({ page }) => {
+    await entrar(page, "gerentebarra", "barra123");
+    await page.goto("/vendedoras");
+
+    const naCarteira = page
+      .locator("ul")
+      .filter({ has: page.getByRole("button", { name: "Salvar" }) })
+      .first()
+      .getByRole("listitem");
+    await expect(naCarteira.first()).toBeVisible();
+    const antes = await naCarteira.count();
+
+    const primeira = naCarteira.first();
+    await primeira.getByLabel("arquivada").check();
+    await primeira.getByRole("button", { name: "Salvar" }).click();
+
+    // A linha sai da carteira e mesmo assim a gerente vê que deu certo.
+    await expect(page.locator("main").getByRole("status")).toContainText("atualizada");
+    await expect(naCarteira).toHaveCount(antes - 1);
+
+    // E ela não sumiu do app: está na gaveta das arquivadas.
+    await expect(page.locator("details")).toContainText("Arquivadas");
   });
 
   test("recusa cadastrar nome repetido", async ({ page }) => {

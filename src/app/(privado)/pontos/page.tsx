@@ -6,6 +6,7 @@ import { formatarDia, formatarMes, mesDe } from "@/lib/data";
 import { prisma } from "@/lib/db";
 import { ehAdmin, lojaEmFoco } from "@/lib/escopo";
 import { sessaoAtual } from "@/lib/sessao-cookie";
+import { Rolagem } from "@/components/rolagem";
 
 export const metadata = { title: "Pontos e bônus · Alta Performance" };
 
@@ -64,11 +65,11 @@ function celulaDePercentual(item: LinhaDoRanking["porIndicador"][number]) {
 
 function TabelaDeIndicadores({ itens }: { itens: LinhaDoRanking["porIndicador"] }) {
   return (
-    <div className="overflow-x-auto">
+    <Rolagem>
       <table className="w-full min-w-[560px] text-sm">
         <thead>
           <tr className="rotulo border-b border-linha">
-            <th className="py-2 pr-3 text-left font-normal">Indicador</th>
+            <th className="col-fixa py-2 pr-3 text-left font-normal">Indicador</th>
             <th className="px-3 py-2 text-right font-normal">Meta do mês</th>
             <th className="px-3 py-2 text-right font-normal">Meta até hoje</th>
             <th className="px-3 py-2 text-right font-normal">Realizado</th>
@@ -79,7 +80,7 @@ function TabelaDeIndicadores({ itens }: { itens: LinhaDoRanking["porIndicador"] 
         <tbody>
           {itens.map((item) => (
             <tr key={item.indicador} className="border-b border-linha last:border-b-0">
-              <td className="py-2 pr-3 text-tinta">{ROTULO[item.indicador]}</td>
+              <td className="col-fixa py-2 pr-3 text-tinta">{ROTULO[item.indicador]}</td>
               <td className="numeros px-3 py-2 text-right text-tinta-3">
                 {valorDoIndicador(item.indicador, item.meta)}
               </td>
@@ -97,7 +98,7 @@ function TabelaDeIndicadores({ itens }: { itens: LinhaDoRanking["porIndicador"] 
           ))}
         </tbody>
       </table>
-    </div>
+    </Rolagem>
   );
 }
 

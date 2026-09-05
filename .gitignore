@@ -12,3 +12,7 @@ build/
 /.vercel
 next-env.d.ts
 tsconfig.tsbuildinfo
+
+# Rascunhos da sessão: capturas de tela, sondagens, servidor de teste.
+.scratch/
+scripts/capturas/

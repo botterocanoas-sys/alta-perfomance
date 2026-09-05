@@ -85,8 +85,75 @@ export function FormularioDeCadastro({ lojaId }: { lojaId: string }) {
   );
 }
 
-export function LinhaDaVendedora({ vendedora }: { vendedora: VendedoraNaTela }) {
+/**
+ * A carteira inteira num componente só, com um aviso único acima das listas.
+ *
+ * O aviso já morou dentro da linha, e era um erro: arquivar tira a pessoa da
+ * lista de ativas, a linha desmonta e a confirmação vai junto — a gerente
+ * clicava, a pessoa sumia e nada dizia que tinha dado certo. Aqui em cima ele
+ * sobrevive à lista se remontar.
+ */
+export function Carteira({
+  ativas,
+  arquivadas,
+}: {
+  ativas: VendedoraNaTela[];
+  arquivadas: VendedoraNaTela[];
+}) {
   const [estado, acao] = useActionState(alterarVendedora, INICIAL);
+
+  return (
+    <>
+      <section>
+        <h2 className="text-xl font-bold tracking-tight text-tinta">
+          Na carteira
+          <span className="ml-2 font-sistema text-sm font-normal text-tinta-3">
+            {ativas.length} {ativas.length === 1 ? "pessoa" : "pessoas"}
+          </span>
+        </h2>
+
+        <div className="mt-3 empty:mt-0">
+          <Aviso estado={estado} />
+        </div>
+
+        {ativas.length === 0 ? (
+          <p className="mt-3 border border-linha bg-papel p-5 text-tinta-2">
+            Nenhuma vendedora ainda. Elas nascem sozinhas na primeira importação do relatório.
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-linha border border-linha bg-papel">
+            {ativas.map((vendedora) => (
+              <LinhaDaVendedora key={vendedora.id} vendedora={vendedora} acao={acao} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {arquivadas.length > 0 ? (
+        <section>
+          <details className="border border-linha bg-papel">
+            <summary className="cursor-pointer px-5 py-3 font-sistema text-sm font-semibold text-tinta-2">
+              Arquivadas ({arquivadas.length})
+            </summary>
+            <ul className="divide-y divide-linha border-t border-linha">
+              {arquivadas.map((vendedora) => (
+                <LinhaDaVendedora key={vendedora.id} vendedora={vendedora} acao={acao} />
+              ))}
+            </ul>
+          </details>
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+function LinhaDaVendedora({
+  vendedora,
+  acao,
+}: {
+  vendedora: VendedoraNaTela;
+  acao: (formData: FormData) => void;
+}) {
   const [editandoNome, setEditandoNome] = useState(false);
 
   const noPrograma = (vendedora.metaDoMes ?? 0) > 0 && vendedora.contaComoVendedora;
@@ -166,8 +233,6 @@ export function LinhaDaVendedora({ vendedora }: { vendedora: VendedoraNaTela }) 
         <input type="hidden" name="contaComoVendedora" value="nao" />
         <input type="hidden" name="recebeBonusVendedora" value="nao" />
         <input type="hidden" name="arquivada" value="nao" />
-
-        <Aviso estado={estado} />
       </form>
     </li>
   );

@@ -1,54 +1,158 @@
 @import "tailwindcss";
 
 /*
- * Paleta e tipografia do brief (seção 10): fundo creme, serifa com peso nos
- * títulos, alto contraste. O acabamento visual é a etapa 9 — por enquanto a
- * tipografia usa as fontes do sistema, sem baixar fonte externa no build.
+ * Seção 10 do brief: fundo creme, tipografia serifada com peso nos títulos,
+ * alto contraste. E a regra que decide todos os empates — a legibilidade dos
+ * números vem antes da estética.
  */
 @theme {
+  /* Creme quente para o fundo, papel quase branco para os blocos de leitura. */
   --color-creme: #f6f2ea;
   --color-creme-fundo: #efe9dd;
-  --color-papel: #ffffff;
+  --color-papel: #fffdf9;
+
+  /* Tinta quase preta, com um toque de marrom para casar com o creme. */
   --color-tinta: #1a1713;
-  --color-tinta-2: #57504a;
-  --color-tinta-3: #8b8279;
+  --color-tinta-2: #554d44;
+  --color-tinta-3: #8a8076;
   --color-linha: #ddd5c6;
+  --color-linha-forte: #c4b8a3;
+
+  /* Vinho da marca, usado com parcimônia: destaque e o que exige decisão. */
   --color-vinho: #7c2d2d;
-  --color-vinho-claro: #f0e3e0;
+  --color-vinho-claro: #f2e6e2;
+
+  /* Semânticas, separadas do vinho de propósito. */
   --color-ritmo: #2c6149;
   --color-atencao: #8a5a12;
   --color-critico: #a03226;
 
-  --font-serifada: Georgia, "Times New Roman", "Liberation Serif", serif;
-  --font-sistema: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-numeros: ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
+  --font-titulos: var(--fonte-titulos), Georgia, "Times New Roman", serif;
+  --font-sistema: var(--fonte-corpo), system-ui, -apple-system, sans-serif;
+  --font-numeros: var(--fonte-numeros), ui-monospace, Menlo, monospace;
+  --font-serifada: var(--font-titulos);
 }
 
-html,
+html {
+  background: var(--color-creme-fundo);
+  /* O iOS aumenta o texto sozinho na horizontal; isso mantém o tamanho. */
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background: var(--color-creme-fundo);
   color: var(--color-tinta);
-  font-family: var(--font-serifada);
-  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-sistema);
+  font-size: 1rem;
+  line-height: 1.55;
+  /* No celular a tela é estreita: nada pode empurrar a página para o lado. */
+  overflow-x: hidden;
 }
 
-/* Números em colunas precisam alinhar; é a leitura mais importante do app. */
+/* Títulos na serifada, com peso — é o que o brief pede. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-titulos);
+  font-variation-settings: "SOFT" 20, "WONK" 0;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+/*
+ * Números em colunas precisam alinhar: é a leitura mais importante do app, e a
+ * gerente compara linha com linha de relance.
+ */
 .numeros {
   font-family: var(--font-numeros);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .rotulo {
   font-family: var(--font-sistema);
   font-size: 0.6875rem;
+  font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--color-tinta-3);
 }
 
+/* Toda tabela larga rola dentro do próprio bloco, nunca a página inteira. */
+.tabela-rolante {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/*
+ * A coluna do nome fica parada enquanto o resto corre para o lado. Sem isso a
+ * gerente rola até Pontos e não sabe mais de qual indicador é aquela linha.
+ */
+.tabela-rolante .col-fixa {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-papel);
+}
+
+/*
+ * A caixa de marcar nativa é pequena demais para o dedo em qualquer tela, e o
+ * azul do navegador destoa do creme. Aumentar aqui, e não com `transform`, é o
+ * que mantém a caixa no lugar dela em vez de passar por cima do rótulo.
+ */
+input[type="checkbox"] {
+  width: 1.375rem;
+  height: 1.375rem;
+  flex: none;
+  accent-color: var(--color-tinta);
+}
+
+/*
+ * Alvos de toque no celular. A gerente usa isso em pé, no chão de loja, com o
+ * celular numa mão — 44px é o mínimo que se acerta sem olhar.
+ *
+ * Nenhum link do app fica no meio de uma frase; todos são navegação. Por isso
+ * a regra vale para todos, sem exceção que precise de seletor complicado.
+ */
+@media (pointer: coarse) {
+  button,
+  summary,
+  a[href] {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* No formulário, o alvo é o rótulo inteiro — ele já envolve a caixa. */
+  label:has(input[type="checkbox"]) {
+    min-height: 44px;
+  }
+
+  /* iOS dá zoom sozinho em campo com fonte menor que 16px. */
+  input,
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+
+  /* Campo de digitar também é alvo de toque: precisa da mesma altura mínima. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 44px;
+  }
+}
+
 :focus-visible {
   outline: 2px solid var(--color-vinho);
   outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Um bloco só de leitura nunca deve ficar largo demais. */
+.prosa {
+  max-width: 62ch;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -57,5 +161,17 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  /* A gerente às vezes imprime a página da vendedora para a reunião. */
+  body {
+    background: #fff;
+  }
+
+  .sem-impressao {
+    display: none !important;
   }
 }

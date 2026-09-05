@@ -5,6 +5,7 @@ import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { confirmar, previsualizar, type EstadoDaImportacao } from "./acoes";
+import { Rolagem } from "@/components/rolagem";
 
 const INICIAL: EstadoDaImportacao = { fase: "inicio" };
 
@@ -168,7 +169,7 @@ export function FormularioDeImportacao({ hoje }: { hoje: string }) {
               ) : null}
 
               {loja.conferencias.length > 0 ? (
-                <div className="mt-3 overflow-x-auto">
+                <Rolagem className="mt-3">
                   <table className="w-full min-w-[420px] text-sm">
                     <thead>
                       <tr className="rotulo">
@@ -193,7 +194,7 @@ export function FormularioDeImportacao({ hoje }: { hoje: string }) {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </Rolagem>
               ) : (
                 <p className="mt-2 font-sistema text-sm text-tinta-3">
                   Este bloco não tem linha Subtotal — sem conferência da soma.

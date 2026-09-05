@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { ehAdmin, lojaEmFoco } from "@/lib/escopo";
 import { sessaoAtual } from "@/lib/sessao-cookie";
 
-import { FormularioDeCadastro, LinhaDaVendedora, type VendedoraNaTela } from "./formularios";
+import { Carteira, FormularioDeCadastro, type VendedoraNaTela } from "./formularios";
 
 export const metadata = { title: "Gerenciar vendedoras · Alta Performance" };
 
@@ -116,41 +116,7 @@ export default async function Vendedoras({
         </dl>
       </section>
 
-      <section>
-        <h2 className="text-xl font-bold tracking-tight text-tinta">
-          Na carteira
-          <span className="ml-2 font-sistema text-sm font-normal text-tinta-3">
-            {ativas.length} {ativas.length === 1 ? "pessoa" : "pessoas"}
-          </span>
-        </h2>
-
-        {ativas.length === 0 ? (
-          <p className="mt-3 border border-linha bg-papel p-5 text-tinta-2">
-            Nenhuma vendedora ainda. Elas nascem sozinhas na primeira importação do relatório.
-          </p>
-        ) : (
-          <ul className="mt-3 divide-y divide-linha border border-linha bg-papel">
-            {ativas.map((vendedora) => (
-              <LinhaDaVendedora key={vendedora.id} vendedora={vendedora} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {arquivadas.length > 0 ? (
-        <section>
-          <details className="border border-linha bg-papel">
-            <summary className="cursor-pointer px-5 py-3 font-sistema text-sm font-semibold text-tinta-2">
-              Arquivadas ({arquivadas.length})
-            </summary>
-            <ul className="divide-y divide-linha border-t border-linha">
-              {arquivadas.map((vendedora) => (
-                <LinhaDaVendedora key={vendedora.id} vendedora={vendedora} />
-              ))}
-            </ul>
-          </details>
-        </section>
-      ) : null}
+      <Carteira ativas={ativas} arquivadas={arquivadas} />
 
       <section className="border border-linha bg-papel p-5">
         <h2 className="mb-3 text-lg font-bold tracking-tight text-tinta">Cadastrar à mão</h2>

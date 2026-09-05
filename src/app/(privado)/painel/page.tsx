@@ -273,13 +273,11 @@ export default async function Painel({
         ) : null}
       </section>
 
-      <section className="border-l-2 border-vinho bg-vinho-claro px-4 py-3">
-        <p className="font-sistema text-sm text-tinta-2">
-          Etapa 8 de 10. Falta o acabamento visual (etapa 9) e a publicação (etapa 10). A
-          carteira tem {quantasNaCarteira}{" "}
-          {quantasNaCarteira === 1 ? "pessoa cadastrada" : "pessoas cadastradas"}.
-        </p>
-      </section>
+      <p className="font-sistema text-xs text-tinta-3">
+        Carteira desta loja: {quantasNaCarteira}{" "}
+        {quantasNaCarteira === 1 ? "pessoa" : "pessoas"}. Quem sai da loja precisa ser arquivada na
+        tela de vendedoras, para não continuar entrando nas médias.
+      </p>
     </div>
   );
 }
