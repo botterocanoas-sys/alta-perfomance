@@ -72,6 +72,38 @@ test.describe("o veredito e o que atacar", () => {
   });
 });
 
+test.describe("os insights", () => {
+  test("traz frases curtas, cada uma com um número", async ({ page }) => {
+    await entrar(page, "gerentebarra", "barra123");
+    await abrirPrimeiraVendedora(page);
+
+    await expect(page.getByRole("heading", { name: "Para a conversa" })).toBeVisible();
+
+    const frases = page.getByRole("heading", { name: "Para a conversa" }).locator("xpath=../ul/li");
+    const quantas = await frases.count();
+
+    expect(quantas).toBeGreaterThanOrEqual(1);
+    expect(quantas).toBeLessThanOrEqual(5);
+
+    // Toda frase precisa carregar um número: é a regra da seção 9.
+    for (let i = 0; i < quantas; i += 1) {
+      const texto = (await frases.nth(i).textContent()) ?? "";
+      expect(texto, `frase ${i + 1} sem número`).toMatch(/\d/);
+      // E nada de elogio ou crítica solta.
+      expect(texto).not.toMatch(/parabéns|ótim|excelente|péssim|ruim demais/i);
+    }
+  });
+
+  test("deixa claro que hipótese é hipótese", async ({ page }) => {
+    await entrar(page, "admin", "trocarsenha123");
+    await abrirPrimeiraVendedora(page);
+
+    await expect(
+      page.getByText(/é hipótese para checar na conversa/),
+    ).toBeVisible();
+  });
+});
+
 test.describe("os números da conversa", () => {
   test("traz o gráfico, os seis indicadores e a consistência", async ({ page }) => {
     await entrar(page, "gerentebarra", "barra123");

@@ -6,12 +6,12 @@ Grande do Sul — Barra, Padre e Park.
 A gerente abre a página da vendedora e vê, em trinta segundos, quanto ela
 ganhou ou perdeu de bônus, como está o mês e qual indicador atacar hoje.
 
-**Estado atual: etapa 6 de 10.** Login e isolamento por loja funcionando; a
+**Estado atual: etapa 7 de 10.** Login e isolamento por loja funcionando; a
 importação lê o relatório, confere contra a linha Subtotal e calcula o
 resultado de cada dia por diferença; o motor de pontos apura metas, faixas,
 pontos e bônus; o painel mostra o resumo do mês e o ranking; e a tela da
-reunião traz o veredito do dia, o que atacar hoje e o registro da conversa.
-Os insights são a etapa 7.
+reunião traz o veredito do dia, os insights, o que atacar hoje e o registro da
+conversa. Lançar CRM e gerenciar vendedoras são a etapa 8.
 
 ---
 
@@ -26,6 +26,7 @@ Os insights são a etapa 7.
 | [`docs/05-motor-de-pontos.md`](docs/05-motor-de-pontos.md) | Metas, faixas, pontos, bônus e o mapa dos denominadores |
 | [`docs/06-painel-da-loja.md`](docs/06-painel-da-loja.md) | As duas leituras de percentual, o ritmo e os selos |
 | [`docs/07-tela-da-reuniao.md`](docs/07-tela-da-reuniao.md) | A cobertura da medição, o retorno marginal e a tela da reunião |
+| [`docs/08-insights.md`](docs/08-insights.md) | Como cada frase nasce de uma distância numérica |
 
 Se um número na tela parecer errado, a resposta está no `02`.
 
@@ -94,6 +95,7 @@ src/lib/escopo.ts      ⭐ o isolamento por loja. Toda consulta passa por aqui
 src/lib/delta.ts       ⭐ o resultado do dia por diferença. Funções puras
 src/lib/pontuacao.ts   ⭐ faixas, rateio, mapa dos denominadores, ritmo e degraus
 src/lib/reuniao.ts     tudo que a tela da reunião precisa, numa leitura só
+src/lib/insights.ts    as frases da conversa, cada uma com um número atrás
 src/lib/apuracao.ts    roda o motor sobre o banco e grava a apuração do dia
 src/lib/sessao.ts      login e ciclo de vida do token (sem depender do Next)
 src/lib/sessao-cookie.ts  a ponte com o cookie do navegador
@@ -135,6 +137,10 @@ e2e/                   testes pelo navegador (Playwright)
    ponderada de quem foi medido, então vem sempre com "X de 40 pontos
    medidos". Abaixo de metade, o selo nem é emitido.
 
+5. **Nenhuma frase sem número atrás.** Os insights saem de distâncias entre
+   meta, realizado e ritmo. Hipótese aparece marcada como hipótese, e a
+   decisão volta para quem estava na loja.
+
 ---
 
 ## O que falta
@@ -147,7 +153,7 @@ e2e/                   testes pelo navegador (Playwright)
 | 4 | ✅ Metas, motor de pontos e bônus |
 | 5 | ✅ Painel da loja |
 | 6 | ✅ Página da vendedora e registro da reunião |
-| 7 | Insights |
+| 7 | ✅ Insights |
 | 8 | CRM manual e gerenciar vendedoras |
 | 9 | Acabamento visual, responsivo, estados vazios |
 | 10 | Publicação, com passo a passo e checklist de segurança |

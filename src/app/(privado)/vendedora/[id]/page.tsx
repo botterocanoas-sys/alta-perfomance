@@ -16,7 +16,19 @@ import { AcessoNegado, exigirAcessoAVendedora } from "@/lib/escopo";
 import { lerDadosDaReuniao } from "@/lib/reuniao";
 import { sessaoAtual } from "@/lib/sessao-cookie";
 
+import { TOM, type Tom } from "@/lib/insights";
+
 import { FormularioDaReuniao } from "./formulario-da-reuniao";
+
+/** A cor da borda diz o tom da frase sem precisar de rótulo. */
+const CORES_DO_TOM: Record<Tom, string> = {
+  [TOM.PRIORIDADE]: "border-critico",
+  [TOM.RECUPERAVEL]: "border-atencao",
+  [TOM.RECONHECIMENTO]: "border-ritmo",
+  [TOM.HIPOTESE]: "border-vinho",
+  [TOM.COMPARACAO]: "border-tinta-3",
+  [TOM.DEGRAU]: "border-tinta",
+};
 
 /**
  * A tela da reunião (seção 8.3 do brief) — a mais importante do app.
@@ -109,6 +121,28 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
               ritmo acima de 110%.
             </p>
           </section>
+
+          {/* b) os insights, em frases curtas */}
+          {dados.insights.length > 0 ? (
+            <section>
+              <h2 className="text-xl font-bold tracking-tight text-tinta">Para a conversa</h2>
+              <ul className="mt-3 flex flex-col gap-2">
+                {dados.insights.map((insight) => (
+                  <li
+                    key={insight.chave}
+                    className={`border-l-2 bg-papel px-4 py-3 leading-relaxed text-tinta-2 ${CORES_DO_TOM[insight.tom]}`}
+                  >
+                    {insight.texto}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 font-sistema text-xs text-tinta-3">
+                Cada frase sai de uma distância entre meta, realizado e ritmo. Onde aparece
+                &ldquo;pode ser que&rdquo;, é hipótese para checar na conversa — quem sabe é você,
+                que estava lá.
+              </p>
+            </section>
+          ) : null}
 
           {/* c) o KPI para atacar hoje */}
           {dados.atacarHoje ? (
@@ -389,8 +423,8 @@ export default async function PaginaDaVendedora({ params }: { params: Promise<{ 
 
       <section className="border-l-2 border-vinho bg-vinho-claro px-4 py-3">
         <p className="font-sistema text-sm text-tinta-2">
-          Etapa 6 de 10. Os insights em frases curtas — comparação com a média da loja, hipóteses a
-          checar na conversa — são a etapa 7.
+          Etapa 7 de 10. Lançar CRM e gerenciar vendedoras são a etapa 8; o acabamento visual, a
+          etapa 9.
         </p>
       </section>
     </div>

@@ -3,6 +3,7 @@ import { Indicador, SituacaoApuracao, TipoFaixa } from "@prisma/client";
 import { lerApuracao, type LinhaDoRanking } from "@/lib/apuracao";
 import { diaEmPortoAlegre, fimDoMes, mesDe } from "@/lib/data";
 import { prisma } from "@/lib/db";
+import { gerarInsights, type Insight } from "@/lib/insights";
 import { melhorDegrau, proximoDegrau, type Degrau, type Faixa, type Regra } from "@/lib/pontuacao";
 
 /**
@@ -59,6 +60,8 @@ export type DadosDaReuniao = {
   comparacao: ComparacaoSemanal[];
   consistencia: Consistencia[];
   atacarHoje: DegrauNaTela | null;
+  /** De 3 a 5 frases, cada uma nascida de uma distância numérica. */
+  insights: Insight[];
   /** O indicador com pior ritmo — nem sempre é o mesmo que atacar hoje. */
   piorIndicador: Indicador | null;
   mediaDaLoja: Map<Indicador, number>;
@@ -132,6 +135,7 @@ export async function lerDadosDaReuniao(
     comparacao: [],
     consistencia: [],
     atacarHoje: null,
+    insights: [],
     piorIndicador: null,
     mediaDaLoja: new Map(),
     reuniaoDeHoje: null,
@@ -276,6 +280,22 @@ export async function lerDadosDaReuniao(
       }
     : null;
 
+  // ── a média da loja, que os insights usam para comparar ──
+  const mediaDaLoja = new Map<Indicador, number>();
+  for (const item of apuracao.gerente?.porIndicador ?? []) {
+    if (item.pct !== null) mediaDaLoja.set(item.indicador, item.pct);
+  }
+
+  const insights = gerarInsights({
+    porIndicador: linha.porIndicador,
+    mediaDaLoja,
+    diasDecorridos: apuracao.diasDecorridos,
+    diasDoMes: apuracao.diasDoMes,
+    degrauNoCard: melhor,
+    degraus: degraus.filter((degrau): degrau is Degrau => degrau !== null),
+    valorDoPonto,
+  });
+
   // ── o pior indicador, para a tela poder explicar a diferença ──
   const medidos = linha.porIndicador.filter(
     (item) => item.situacao === SituacaoApuracao.APURADA && item.pct !== null,
@@ -284,12 +304,6 @@ export async function lerDadosDaReuniao(
     medidos.length > 0
       ? medidos.reduce((pior, item) => (item.pct! < pior.pct! ? item : pior)).indicador
       : null;
-
-  // ── a média da loja, para comparar ──
-  const mediaDaLoja = new Map<Indicador, number>();
-  for (const item of apuracao.gerente?.porIndicador ?? []) {
-    if (item.pct !== null) mediaDaLoja.set(item.indicador, item.pct);
-  }
 
   return {
     data: apuracao.data,
@@ -302,6 +316,7 @@ export async function lerDadosDaReuniao(
     comparacao,
     consistencia,
     atacarHoje,
+    insights,
     piorIndicador,
     mediaDaLoja,
     ...reunioes,
