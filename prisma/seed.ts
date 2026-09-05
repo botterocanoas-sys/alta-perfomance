@@ -21,7 +21,15 @@ import { gerarHashDeSenha } from "../src/lib/senha";
 import { normalizar } from "../src/lib/texto";
 
 /** Mês de referência inicial. O brief trazia agosto; estamos em setembro/2026. */
-const MES = new Date(Date.UTC(2026, 8, 1));
+/**
+ * As metas nascem no mês em que o seed roda, e não numa data cravada aqui.
+ *
+ * Se fosse cravada, semear em produção em outubro criaria as metas de setembro
+ * e deixaria o mês corrente sem meta nenhuma — pontuação zerada e a gerente sem
+ * entender por quê. Nos meses seguintes é a tela de Metas que cuida disso.
+ */
+const agora = new Date();
+const MES = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), 1));
 
 const LOJAS = [
   {

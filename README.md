@@ -6,13 +6,16 @@ Grande do Sul — Barra, Padre e Park.
 A gerente abre a página da vendedora e vê, em trinta segundos, quanto ela
 ganhou ou perdeu de bônus, como está o mês e qual indicador atacar hoje.
 
-**Estado atual: etapa 8 de 10.** Login e isolamento por loja funcionando; a
-importação lê o relatório, confere contra a linha Subtotal e calcula o
-resultado de cada dia por diferença; o motor de pontos apura metas, faixas,
-pontos e bônus; o painel mostra o resumo do mês e o ranking; e a tela da
+**Estado atual: pronto para publicar.** Login e isolamento por loja
+funcionando; a importação lê o relatório, confere contra a linha Subtotal e
+calcula o resultado de cada dia por diferença; o motor de pontos apura metas,
+faixas, pontos e bônus; o painel mostra o resumo do mês e o ranking; a tela da
 reunião traz o veredito do dia, os insights, o que atacar hoje e o registro da
-conversa; e o CRM, o cadastro de vendedoras e as metas do mês têm tela própria.
-Falta o acabamento visual (etapa 9) e a publicação (etapa 10).
+conversa; CRM, cadastro de vendedoras, metas do mês e troca de senha têm tela
+própria; e o app foi verificado em tela de celular.
+
+**Para colocar no ar, siga [`docs/11-publicacao.md`](docs/11-publicacao.md).**
+Ele tem o passo a passo na Neon e na Vercel e o checklist de segurança.
 
 ---
 
@@ -29,6 +32,8 @@ Falta o acabamento visual (etapa 9) e a publicação (etapa 10).
 | [`docs/07-tela-da-reuniao.md`](docs/07-tela-da-reuniao.md) | A cobertura da medição, o retorno marginal e a tela da reunião |
 | [`docs/08-insights.md`](docs/08-insights.md) | Como cada frase nasce de uma distância numérica |
 | [`docs/09-crm-e-cadastro.md`](docs/09-crm-e-cadastro.md) | CRM, as três chaves do cadastro e a trava dos 40 pontos |
+| [`docs/10-acabamento-e-celular.md`](docs/10-acabamento-e-celular.md) | Tipografia, celular, estados vazios e o esqueleto que mostrava a loja errada |
+| [`docs/11-publicacao.md`](docs/11-publicacao.md) | Publicar na Neon e na Vercel, senhas e checklist de segurança |
 
 Se um número na tela parecer errado, a resposta está no `02`.
 
@@ -42,15 +47,18 @@ Postgres. Para desenvolver, o mais fácil é criar um banco gratuito na
 
 ```bash
 npm install                 # baixa as dependências
-cp .env.example .env        # e preencha DATABASE_URL e SESSAO_SECRET
+cp .env.example .env        # e preencha DATABASE_URL
 npx prisma migrate deploy   # cria as tabelas
 npm run db:seed             # cria as lojas, os 4 logins, as metas e as regras
 npm run dev                 # abre em http://localhost:3000
 ```
 
-Para gerar o `SESSAO_SECRET`, rode `openssl rand -base64 32` e cole o resultado.
-
 ### Os quatro logins
+
+> ⚠️ **Estas senhas são provisórias e estão escritas neste arquivo, que fica no
+> GitHub.** Troque as quatro pelo botão **Trocar senha**, no alto de qualquer
+> tela, assim que o app estiver no ar — e apague esta tabela depois. O passo a
+> passo está em [`docs/11-publicacao.md`](docs/11-publicacao.md).
 
 | Usuário | Senha | Enxerga |
 |---|---|---|
@@ -59,17 +67,23 @@ Para gerar o `SESSAO_SECRET`, rode `openssl rand -base64 32` e cole o resultado.
 | `gerentepark` | `park123` | só a Park |
 | `admin` | `trocarsenha123` | as três lojas, e importa o relatório |
 
-> ⚠️ **Troque a senha do `admin` antes de colocar no ar.** Ela é provisória e
-> está escrita neste arquivo, que fica no GitHub.
+Quem esquecer a senha é atendido pelo admin, na própria tela de Trocar senha.
+Se quem esquecer for o admin, use
+`npx tsx scripts/definir-senha.ts admin "a senha nova"`.
 
 ---
 
 ## Testes
 
 ```bash
-npm test          # regras: sessão, senha, isolamento por loja
-npm run test:e2e  # o mesmo pelo navegador, com o app rodando
+npm test                 # regras: sessão, senha, isolamento por loja
+npm run test:e2e         # o mesmo pelo navegador, com o app rodando
+npm run auditoria:celular  # 390px: nada vaza, nenhum alvo abaixo de 44px
 ```
+
+A auditoria de celular precisa do app rodando na porta 3100 com dados
+importados; ela falha em voz alta se alguma tela passar da largura da tela ou
+tiver botão pequeno demais para o dedo.
 
 Os testes usam um banco separado (`DATABASE_URL_TEST`), que é limpo e semeado
 a cada execução. O script se recusa a rodar em banco cujo nome não termine em
@@ -82,7 +96,9 @@ Dois testes valem por muitos:
 - **delta** — os três casos da seção 5 do brief, a virada do mês, o dia
   negativo por devolução e a divisão por zero;
 - **pontos** — as fronteiras das faixas (94,9 / 95 / 100 / 110 / 110,1), o
-  rateio desigual da Padre e a diferença entre "sem medição" e 0%.
+  rateio desigual da Padre e a diferença entre "sem medição" e 0%;
+- **senha** — trocar derruba as outras sessões, o admin redefine a de quem
+  esqueceu e a gerente não redefine a de ninguém.
 
 ---
 
@@ -116,6 +132,9 @@ src/app/(privado)/     tudo que exige sessão válida
   crm/                 lançar as vendas influenciadas pelo CRM, com data retroativa
   vendedoras/          carteira: conta como vendedora, bônus individual, arquivar
   metas/               metas da loja, valor do ponto e pontos por indicador
+  senha/               trocar a própria senha; o admin redefine a de quem esqueceu
+
+scripts/               auditoria de celular e o resgate de senha do admin
 
 src/components/        pedaços de tela compartilhados (tabela, selo, formatos)
 
@@ -151,7 +170,7 @@ e2e/                   testes pelo navegador (Playwright)
 
 ---
 
-## O que falta
+## As dez etapas
 
 | Etapa | |
 |---|---|
@@ -163,5 +182,5 @@ e2e/                   testes pelo navegador (Playwright)
 | 6 | ✅ Página da vendedora e registro da reunião |
 | 7 | ✅ Insights |
 | 8 | ✅ CRM manual, gerenciar vendedoras e metas do mês |
-| 9 | Acabamento visual, responsivo, estados vazios |
-| 10 | Publicação, com passo a passo e checklist de segurança |
+| 9 | ✅ Acabamento visual, responsivo, estados vazios |
+| 10 | ✅ Publicação, com passo a passo e checklist de segurança |

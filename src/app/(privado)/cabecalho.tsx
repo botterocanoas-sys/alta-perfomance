@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Papel } from "@prisma/client";
 
 import type { SessaoAtiva } from "@/lib/sessao";
@@ -18,14 +19,23 @@ export function Cabecalho({ sessao }: { sessao: SessaoAtiva }) {
           </p>
         </div>
 
-        <form action={sair}>
-          <button
-            type="submit"
+        <div className="flex items-center gap-2">
+          <Link
+            href="/senha"
             className="rounded-sm border border-linha px-3 py-2 font-sistema text-xs font-semibold tracking-wide text-tinta-2"
           >
-            Sair
-          </button>
-        </form>
+            Trocar senha
+          </Link>
+
+          <form action={sair}>
+            <button
+              type="submit"
+              className="rounded-sm border border-linha px-3 py-2 font-sistema text-xs font-semibold tracking-wide text-tinta-2"
+            >
+              Sair
+            </button>
+          </form>
+        </div>
       </div>
     </header>
   );

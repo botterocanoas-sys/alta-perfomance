@@ -23,6 +23,7 @@ const TELAS = [
   ['vendedoras', '/vendedoras'],
   ['metas', '/metas'],
   ['conferencia', '/conferencia'],
+  ['senha', '/senha'],
 ];
 
 const navegador = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
