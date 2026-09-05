@@ -6,12 +6,13 @@ Grande do Sul — Barra, Padre e Park.
 A gerente abre a página da vendedora e vê, em trinta segundos, quanto ela
 ganhou ou perdeu de bônus, como está o mês e qual indicador atacar hoje.
 
-**Estado atual: etapa 7 de 10.** Login e isolamento por loja funcionando; a
+**Estado atual: etapa 8 de 10.** Login e isolamento por loja funcionando; a
 importação lê o relatório, confere contra a linha Subtotal e calcula o
 resultado de cada dia por diferença; o motor de pontos apura metas, faixas,
 pontos e bônus; o painel mostra o resumo do mês e o ranking; e a tela da
 reunião traz o veredito do dia, os insights, o que atacar hoje e o registro da
-conversa. Lançar CRM e gerenciar vendedoras são a etapa 8.
+conversa; e o CRM, o cadastro de vendedoras e as metas do mês têm tela própria.
+Falta o acabamento visual (etapa 9) e a publicação (etapa 10).
 
 ---
 
@@ -27,6 +28,7 @@ conversa. Lançar CRM e gerenciar vendedoras são a etapa 8.
 | [`docs/06-painel-da-loja.md`](docs/06-painel-da-loja.md) | As duas leituras de percentual, o ritmo e os selos |
 | [`docs/07-tela-da-reuniao.md`](docs/07-tela-da-reuniao.md) | A cobertura da medição, o retorno marginal e a tela da reunião |
 | [`docs/08-insights.md`](docs/08-insights.md) | Como cada frase nasce de uma distância numérica |
+| [`docs/09-crm-e-cadastro.md`](docs/09-crm-e-cadastro.md) | CRM, as três chaves do cadastro e a trava dos 40 pontos |
 
 Se um número na tela parecer errado, a resposta está no `02`.
 
@@ -111,6 +113,9 @@ src/app/(privado)/     tudo que exige sessão válida
   conferencia/         acumulado e resultado do dia lado a lado
   pontos/              metas, percentuais, pontos e bônus do mês
   vendedora/[id]/      a tela da reunião: veredito, o que atacar, registro
+  crm/                 lançar as vendas influenciadas pelo CRM, com data retroativa
+  vendedoras/          carteira: conta como vendedora, bônus individual, arquivar
+  metas/               metas da loja, valor do ponto e pontos por indicador
 
 src/components/        pedaços de tela compartilhados (tabela, selo, formatos)
 
@@ -141,6 +146,9 @@ e2e/                   testes pelo navegador (Playwright)
    meta, realizado e ritmo. Hipótese aparece marcada como hipótese, e a
    decisão volta para quem estava na loja.
 
+6. **Toda gravação recalcula o mês.** Lançar CRM, mudar uma chave do cadastro
+   ou corrigir uma meta refaz a pontuação da loja inteira, na mesma transação.
+
 ---
 
 ## O que falta
@@ -154,6 +162,6 @@ e2e/                   testes pelo navegador (Playwright)
 | 5 | ✅ Painel da loja |
 | 6 | ✅ Página da vendedora e registro da reunião |
 | 7 | ✅ Insights |
-| 8 | CRM manual e gerenciar vendedoras |
+| 8 | ✅ CRM manual, gerenciar vendedoras e metas do mês |
 | 9 | Acabamento visual, responsivo, estados vazios |
 | 10 | Publicação, com passo a passo e checklist de segurança |

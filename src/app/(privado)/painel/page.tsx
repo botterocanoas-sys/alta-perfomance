@@ -234,6 +234,24 @@ export default async function Painel({
 
       <section className="flex flex-wrap gap-3">
         <Link
+          href={`/crm?loja=${loja.id}`}
+          className="rounded-sm border border-linha bg-papel px-4 py-2.5 font-sistema text-sm font-semibold text-tinta-2"
+        >
+          Lançar CRM do dia
+        </Link>
+        <Link
+          href={`/vendedoras?loja=${loja.id}`}
+          className="rounded-sm border border-linha bg-papel px-4 py-2.5 font-sistema text-sm font-semibold text-tinta-2"
+        >
+          Gerenciar vendedoras
+        </Link>
+        <Link
+          href={`/metas?loja=${loja.id}`}
+          className="rounded-sm border border-linha bg-papel px-4 py-2.5 font-sistema text-sm font-semibold text-tinta-2"
+        >
+          Metas do mês
+        </Link>
+        <Link
           href={`/pontos?loja=${loja.id}`}
           className="rounded-sm border border-linha bg-papel px-4 py-2.5 font-sistema text-sm font-semibold text-tinta-2"
         >
@@ -257,8 +275,8 @@ export default async function Painel({
 
       <section className="border-l-2 border-vinho bg-vinho-claro px-4 py-3">
         <p className="font-sistema text-sm text-tinta-2">
-          Etapa 5 de 10. Lançar CRM, gerenciar vendedoras e editar as metas do mês são a etapa 8;
-          os botões aparecem aqui quando as telas existirem. A carteira tem {quantasNaCarteira}{" "}
+          Etapa 8 de 10. Falta o acabamento visual (etapa 9) e a publicação (etapa 10). A
+          carteira tem {quantasNaCarteira}{" "}
           {quantasNaCarteira === 1 ? "pessoa cadastrada" : "pessoas cadastradas"}.
         </p>
       </section>

@@ -159,7 +159,7 @@ test.describe("o registro da reunião", () => {
 
     await page.getByRole("button", { name: "Salvar registro" }).click();
     // Escopado ao formulário: o Next mantém um anunciador de rota com role="alert".
-    await expect(page.locator("form").getByRole("alert")).toContainText(
+    await expect(page.locator("main").getByRole("alert")).toContainText(
       "Escreva ao menos um campo",
     );
   });

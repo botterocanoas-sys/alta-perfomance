@@ -39,9 +39,7 @@ test.describe("porta de entrada", () => {
 
     // Escopado ao formulário: o Next mantém um anunciador de rota que também
     // tem role="alert", e um seletor solto pegaria os dois.
-    await expect(page.locator("form").getByRole("alert")).toContainText(
-      "Usuário ou senha incorretos",
-    );
+    await expect(page.locator("main").getByRole("alert")).toContainText("Usuário ou senha incorretos");
     await expect(page).toHaveURL(/\/entrar$/);
   });
 
