@@ -6,10 +6,11 @@ Grande do Sul — Barra, Padre e Park.
 A gerente abre a página da vendedora e vê, em trinta segundos, quanto ela
 ganhou ou perdeu de bônus, como está o mês e qual indicador atacar hoje.
 
-**Estado atual: etapa 4 de 10.** Login e isolamento por loja funcionando; a
+**Estado atual: etapa 5 de 10.** Login e isolamento por loja funcionando; a
 importação lê o relatório, confere contra a linha Subtotal e calcula o
 resultado de cada dia por diferença; o motor de pontos apura metas, faixas,
-pontos e bônus. O painel da loja é a etapa 5.
+pontos e bônus; o painel da loja mostra o resumo do mês e o ranking com selos.
+A tela da reunião é a etapa 6.
 
 ---
 
@@ -22,6 +23,7 @@ pontos e bônus. O painel da loja é a etapa 5.
 | [`docs/03-correcoes-da-revisao.md`](docs/03-correcoes-da-revisao.md) | O que mudou depois de conferir o relatório real |
 | [`docs/04-importacao-e-delta.md`](docs/04-importacao-e-delta.md) | Como o arquivo é lido e como o resultado do dia é calculado |
 | [`docs/05-motor-de-pontos.md`](docs/05-motor-de-pontos.md) | Metas, faixas, pontos, bônus e o mapa dos denominadores |
+| [`docs/06-painel-da-loja.md`](docs/06-painel-da-loja.md) | As duas leituras de percentual, o ritmo e os selos |
 
 Se um número na tela parecer errado, a resposta está no `02`.
 
@@ -103,6 +105,9 @@ src/app/(privado)/     tudo que exige sessão válida
   importar/            upload com prévia (só admin)
   conferencia/         acumulado e resultado do dia lado a lado
   pontos/              metas, percentuais, pontos e bônus do mês
+  vendedora/[id]/      a página individual (a reunião entra na etapa 6)
+
+src/components/        pedaços de tela compartilhados (tabela, selo, formatos)
 
 tests/                 testes de regra (Vitest)
 tests/fixtures/        o relatório de exemplo, com nomes fictícios
@@ -133,7 +138,7 @@ e2e/                   testes pelo navegador (Playwright)
 | 2 | ✅ Login, os 4 usuários e isolamento por loja |
 | 3 | ✅ Importação do relatório, parser e cálculo do delta |
 | 4 | ✅ Metas, motor de pontos e bônus |
-| 5 | Painel da loja |
+| 5 | ✅ Painel da loja |
 | 6 | Página da vendedora e registro da reunião |
 | 7 | Insights |
 | 8 | CRM manual e gerenciar vendedoras |

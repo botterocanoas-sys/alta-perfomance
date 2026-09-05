@@ -9,10 +9,14 @@ import {
   metasDaGerente,
   metasDaVendedora,
   realizadoPorIndicador,
+  ritmoDoMes,
+  SELO,
+  seloDoRitmo,
   SITUACAO,
   totalDePontosAlto,
   type Faixa,
   type Regra,
+  type Situacao,
 } from "@/lib/pontuacao";
 
 /**
@@ -465,5 +469,67 @@ describe("o total do mês", () => {
     const comoGerente = apurarTudo({ ...entradaBase, realizados, valorDoPonto: 25 });
 
     expect(comoGerente.bonusReais / comoVendedora.bonusReais).toBeCloseTo(25 / 15, 10);
+  });
+});
+
+describe("o ritmo do mês e os selos do ranking", () => {
+  const item = (
+    pct: number | null,
+    pontosAlto: number,
+    situacao: Situacao = SITUACAO.APURADA,
+  ) => ({ pct, situacao, pontosAlto });
+
+  it("é a média dos percentuais ponderada pelos pontos de cada indicador", () => {
+    // Valor a 120% pesando 15, Conversão a 40% pesando 3.
+    const ritmo = ritmoDoMes([item(1.2, 15), item(0.4, 3)]);
+    expect(ritmo).toBeCloseTo((1.2 * 15 + 0.4 * 3) / 18, 6);
+  });
+
+  it("ir mal no Valor pesa mais do que ir mal na Conversão", () => {
+    const valorRuim = ritmoDoMes([item(0.5, 15), item(1.2, 3)]);
+    const conversaoRuim = ritmoDoMes([item(1.2, 15), item(0.5, 3)]);
+
+    expect(valorRuim!).toBeLessThan(conversaoRuim!);
+  });
+
+  it("indicador sem medição fica de fora, em vez de contar como zero", () => {
+    const comAusencia = ritmoDoMes([item(1.1, 15), item(null, 5, SITUACAO.SEM_MEDICAO)]);
+    const soOMedido = ritmoDoMes([item(1.1, 15)]);
+
+    expect(comAusencia).toBe(soOMedido);
+    // Se o ausente virasse zero, o ritmo cairia para 0,825.
+    expect(comAusencia).toBeCloseTo(1.1, 6);
+  });
+
+  it("indicador fora da apuração também não entra", () => {
+    const ritmo = ritmoDoMes([item(1.0, 10), item(2, 15, SITUACAO.FORA_DA_APURACAO)]);
+    expect(ritmo).toBe(1);
+  });
+
+  it("sem nenhum indicador medido, o ritmo é nulo e não há selo", () => {
+    expect(ritmoDoMes([])).toBeNull();
+    expect(ritmoDoMes([item(null, 15, SITUACAO.SEM_MEDICAO)])).toBeNull();
+    expect(seloDoRitmo(null)).toBeNull();
+  });
+
+  it.each([
+    [1.5, SELO.NO_RITMO],
+    [1.0, SELO.NO_RITMO],
+    [0.999, SELO.ATENCAO],
+    [0.9, SELO.ATENCAO],
+    [0.8, SELO.ATENCAO],
+    [0.799, SELO.CRITICO],
+    [0.5, SELO.CRITICO],
+    [0, SELO.CRITICO],
+  ])("ritmo %s → selo %s", (ritmo, esperado) => {
+    expect(seloDoRitmo(ritmo)).toBe(esperado);
+  });
+
+  it("os cortes do brief: 100% e 80%", () => {
+    // "no ritmo" começa exatamente em 100%, "atenção" exatamente em 80%.
+    expect(seloDoRitmo(1)).toBe(SELO.NO_RITMO);
+    expect(seloDoRitmo(1 - 1e-9)).toBe(SELO.ATENCAO);
+    expect(seloDoRitmo(0.8)).toBe(SELO.ATENCAO);
+    expect(seloDoRitmo(0.8 - 1e-9)).toBe(SELO.CRITICO);
   });
 });

@@ -384,3 +384,49 @@ export function apurarTudo(entrada: {
 export function totalDePontosAlto(regras: Regra[]): number {
   return regras.filter((regra) => regra.ativo).reduce((soma, regra) => soma + regra.pontosAlto, 0);
 }
+
+// ─────────────────────────────────────────────────────────────
+// O ritmo do mês e os selos do ranking
+// ─────────────────────────────────────────────────────────────
+
+export const SELO = { NO_RITMO: "NO_RITMO", ATENCAO: "ATENCAO", CRITICO: "CRITICO" } as const;
+export type Selo = (typeof SELO)[keyof typeof SELO];
+
+/**
+ * Um número só para dizer como a pessoa está no mês.
+ *
+ * O brief pede um selo por tendência, mas cada pessoa tem seis tendências —
+ * uma por indicador. Juntamos numa média **ponderada pelos pontos que cada
+ * indicador vale**: Valor pesa 15 e Conversão pesa 3, então ir mal no
+ * faturamento derruba o ritmo mais do que ir mal na conversão. É a própria
+ * régua do programa decidindo o peso, em vez de uma média simples que trataria
+ * os seis como iguais.
+ *
+ * Indicadores sem medição ou fora da apuração não entram na conta: eles não
+ * têm percentual, e contá-los como zero puniria a pessoa por ausência de dado.
+ * Se nenhum indicador tiver percentual, o ritmo é nulo — sem selo.
+ */
+export function ritmoDoMes(
+  itens: { pct: number | null; situacao: Situacao; pontosAlto: number }[],
+): number | null {
+  const medidos = itens.filter(
+    (item) => item.situacao === SITUACAO.APURADA && item.pct !== null && item.pontosAlto > 0,
+  );
+  if (medidos.length === 0) return null;
+
+  const peso = medidos.reduce((soma, item) => soma + item.pontosAlto, 0);
+  if (peso <= 0) return null;
+
+  return medidos.reduce((soma, item) => soma + item.pct! * item.pontosAlto, 0) / peso;
+}
+
+/**
+ * O selo do ranking, nos cortes do brief (seção 8.2):
+ * "no ritmo" a partir de 100%, "atenção" de 80% a 99%, "crítico" abaixo de 80%.
+ */
+export function seloDoRitmo(ritmo: number | null): Selo | null {
+  if (ritmo === null) return null;
+  if (ritmo >= 1) return SELO.NO_RITMO;
+  if (ritmo >= 0.8) return SELO.ATENCAO;
+  return SELO.CRITICO;
+}

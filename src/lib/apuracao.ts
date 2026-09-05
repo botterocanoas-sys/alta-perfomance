@@ -9,8 +9,11 @@ import {
   metasDaVendedora,
   realizadoPorIndicador,
   SITUACAO,
+  ritmoDoMes,
+  seloDoRitmo,
   somarComponentes,
   totalDePontosAlto,
+  type Selo,
   type Componentes,
   type Faixa,
   type MetasDaLoja,
@@ -339,6 +342,9 @@ export type LinhaDoRanking = {
   recebeBonusVendedora: boolean;
   pontos: number;
   bonusReais: number;
+  /** Média das tendências, ponderada pelos pontos de cada indicador. */
+  ritmo: number | null;
+  selo: Selo | null;
   porIndicador: {
     indicador: Indicador;
     situacao: SituacaoApuracao;
@@ -359,6 +365,8 @@ export type ApuracaoDaLoja = {
   gerente: {
     pontos: number;
     bonusReais: number;
+    ritmo: number | null;
+    selo: Selo | null;
     porIndicador: LinhaDoRanking["porIndicador"];
   } | null;
 };
@@ -386,7 +394,7 @@ export async function lerApuracao(
     return { data: null, diasDecorridos: 0, diasDoMes: 0, vendedoras: [], gerente: null };
   }
 
-  const [daLoja, dasVendedoras] = await Promise.all([
+  const [daLoja, dasVendedoras, regras] = await Promise.all([
     banco.apuracaoLojaDia.findMany({
       where: { lojaId, data: maisRecente },
       orderBy: { indicador: "asc" },
@@ -396,7 +404,22 @@ export async function lerApuracao(
       include: { vendedora: { select: { nome: true, recebeBonusVendedora: true } } },
       orderBy: [{ vendedora: { nome: "asc" } }, { indicador: "asc" }],
     }),
+    banco.regraPontuacao.findMany({
+      where: { lojaId, mesReferencia: mesDe(maisRecente) },
+      select: { indicador: true, pontosAlto: true },
+    }),
   ]);
+
+  // O peso de cada indicador no ritmo é o que ele vale em pontos.
+  const pontosAltoPorIndicador = new Map(
+    regras.map((regra) => [regra.indicador, regra.pontosAlto.toNumber()]),
+  );
+  const pesar = (itens: LinhaDoRanking["porIndicador"]) =>
+    itens.map((item) => ({
+      pct: item.pct,
+      situacao: item.situacao === SituacaoApuracao.APURADA ? SITUACAO.APURADA : SITUACAO.SEM_MEDICAO,
+      pontosAlto: pontosAltoPorIndicador.get(item.indicador) ?? 0,
+    }));
 
   const porVendedora = new Map<string, LinhaDoRanking>();
 
@@ -409,6 +432,8 @@ export async function lerApuracao(
         recebeBonusVendedora: linha.vendedora.recebeBonusVendedora,
         pontos: 0,
         bonusReais: 0,
+        ritmo: null,
+        selo: null,
         porIndicador: [],
       } satisfies LinhaDoRanking);
 
@@ -428,7 +453,23 @@ export async function lerApuracao(
     porVendedora.set(linha.vendedoraId, atual);
   }
 
-  const vendedoras = [...porVendedora.values()].sort((a, b) => b.pontos - a.pontos);
+  const indicadoresDaLoja: LinhaDoRanking["porIndicador"] = daLoja.map((linha) => ({
+    indicador: linha.indicador,
+    situacao: linha.situacao,
+    meta: linha.meta?.toNumber() ?? null,
+    acumulado: linha.acumulado?.toNumber() ?? null,
+    metaProporcional: linha.metaProporcional?.toNumber() ?? null,
+    pct: linha.pct?.toNumber() ?? null,
+    faixa: linha.faixa,
+    pontos: linha.pontos.toNumber(),
+  }));
+
+  const vendedoras = [...porVendedora.values()]
+    .map((linha) => {
+      const ritmo = ritmoDoMes(pesar(linha.porIndicador));
+      return { ...linha, ritmo, selo: seloDoRitmo(ritmo) };
+    })
+    .sort((a, b) => b.pontos - a.pontos || (b.ritmo ?? -1) - (a.ritmo ?? -1));
 
   return {
     data: maisRecente,
@@ -439,6 +480,8 @@ export async function lerApuracao(
       ? {
           pontos: daLoja.reduce((soma, linha) => soma + linha.pontos.toNumber(), 0),
           bonusReais: daLoja.reduce((soma, linha) => soma + linha.bonusReais.toNumber(), 0),
+          ritmo: ritmoDoMes(pesar(indicadoresDaLoja)),
+          selo: seloDoRitmo(ritmoDoMes(pesar(indicadoresDaLoja))),
           porIndicador: daLoja.map((linha) => ({
             indicador: linha.indicador,
             situacao: linha.situacao,

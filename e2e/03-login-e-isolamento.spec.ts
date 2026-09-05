@@ -7,10 +7,12 @@ import { expect, test } from "@playwright/test";
  */
 
 /**
- * Criadas por `e2e/vendedoras-de-teste.ts` antes da suíte. Não aparecem no
- * arquivo de exemplo, então estes testes não dependem de nenhuma importação.
+ * Os arquivos desta pasta compartilham um banco só e rodam em ordem
+ * alfabética, por isso o prefixo numérico: `01-importacao` grava o relatório
+ * de exemplo, e daí em diante o painel tem o que mostrar. Estes nomes são os
+ * do arquivo de exemplo, uma vendedora por loja.
  */
-const MARCADORES = { barra: "ROSANGELA", padre: "SOLANGE", park: "TATIANE" };
+const NO_RANKING = { barra: "TEREZA", padre: "ELISA", park: "IRENE" };
 
 async function entrar(page: import("@playwright/test").Page, usuario: string, senha: string) {
   await page.goto("/entrar");
@@ -60,15 +62,15 @@ test.describe("isolamento por loja no navegador", () => {
   test("a gerente da Barra vê a Barra e a carteira dela", async ({ page }) => {
     await entrar(page, "gerentebarra", "barra123");
 
-    await expect(page.getByRole("heading", { name: "Barra" })).toBeVisible();
-    await expect(page.getByText(MARCADORES.barra)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Barra", level: 1 })).toBeVisible();
+    await expect(page.getByText(NO_RANKING.barra)).toBeVisible();
   });
 
   test("a gerente da Barra não vê ninguém de Padre nem de Park", async ({ page }) => {
     await entrar(page, "gerentebarra", "barra123");
 
     const pagina = await page.content();
-    for (const nome of [MARCADORES.padre, MARCADORES.park]) {
+    for (const nome of [NO_RANKING.padre, NO_RANKING.park]) {
       expect(pagina, `a página vazou o nome ${nome}`).not.toContain(nome);
     }
     expect(pagina).not.toContain("Padre Chagas");
@@ -91,17 +93,17 @@ test.describe("isolamento por loja no navegador", () => {
     expect(idDaBarra, "não consegui descobrir o id da Barra").toBeTruthy();
 
     await entrar(page, "gerentepark", "park123");
-    await expect(page.getByRole("heading", { name: "Park" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Park", level: 1 })).toBeVisible();
 
     // A gerente da Park pede a Barra pelo id real. O parâmetro é ignorado.
     await page.goto(`/painel?loja=${idDaBarra}`);
-    await expect(page.getByRole("heading", { name: "Park" })).toBeVisible();
-    await expect(page.getByText(MARCADORES.park)).toBeVisible();
-    expect(await page.content()).not.toContain(MARCADORES.barra);
+    await expect(page.getByRole("heading", { name: "Park", level: 1 })).toBeVisible();
+    await expect(page.getByText(NO_RANKING.park)).toBeVisible();
+    expect(await page.content()).not.toContain(NO_RANKING.barra);
 
     // Um id inventado dá no mesmo.
     await page.goto("/painel?loja=00000000-0000-0000-0000-000000000000");
-    await expect(page.getByRole("heading", { name: "Park" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Park", level: 1 })).toBeVisible();
   });
 
   test("a gerente não recebe o seletor de lojas", async ({ page }) => {
@@ -116,12 +118,12 @@ test.describe("isolamento por loja no navegador", () => {
     await expect(seletor).toBeVisible();
 
     await seletor.getByRole("link", { name: "Padre" }).click();
-    await expect(page.getByRole("heading", { name: "Padre" })).toBeVisible();
-    await expect(page.getByText(MARCADORES.padre)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Padre", level: 1 })).toBeVisible();
+    await expect(page.getByText(NO_RANKING.padre)).toBeVisible();
 
     await seletor.getByRole("link", { name: "Park" }).click();
-    await expect(page.getByRole("heading", { name: "Park" })).toBeVisible();
-    await expect(page.getByText(MARCADORES.park)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Park", level: 1 })).toBeVisible();
+    await expect(page.getByText(NO_RANKING.park)).toBeVisible();
   });
 });
 
