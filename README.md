@@ -98,7 +98,9 @@ Dois testes valem por muitos:
 - **pontos** — as fronteiras das faixas (94,9 / 95 / 100 / 110 / 110,1), o
   rateio desigual da Padre e a diferença entre "sem medição" e 0%;
 - **senha** — trocar derruba as outras sessões, o admin redefine a de quem
-  esqueceu e a gerente não redefine a de ninguém.
+  esqueceu e a gerente não redefine a de ninguém;
+- **data** — o dia é sempre o de Porto Alegre, com o servidor em qualquer fuso.
+  A extração das 18h39 não pode cair no dia seguinte.
 
 ---
 
@@ -119,7 +121,7 @@ src/lib/sessao.ts      login e ciclo de vida do token (sem depender do Next)
 src/lib/sessao-cookie.ts  a ponte com o cookie do navegador
 src/lib/senha.ts       hash Argon2id
 src/lib/texto.ts       normalização dos nomes vindos da planilha
-src/lib/data.ts        datas no fuso de Porto Alegre
+src/lib/data.ts        datas no fuso de Porto Alegre, fixo — sem variável de ambiente
 src/lib/relatorio/     parser do .xlsx, importação e recálculo do mês
 
 src/app/entrar/        tela de login

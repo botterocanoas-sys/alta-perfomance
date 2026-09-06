@@ -62,14 +62,20 @@ Reserve uns 30 minutos. Nada aqui é irreversível.
    em **Import**.
 4. Ela detecta sozinha que é um projeto Next.js. **Não mude nada** em Framework
    Preset, Build Command nem Output Directory.
-5. Antes de clicar em Deploy, abra **Environment Variables** e cadastre duas:
+5. Antes de clicar em Deploy, abra **Environment Variables** e cadastre uma
+   variável, só:
 
    | Name | Value |
    |---|---|
    | `DATABASE_URL` | o endereço que você copiou da Neon |
-   | `TZ` | `America/Sao_Paulo` |
 
    Deixe as três caixinhas marcadas (*Production*, *Preview*, *Development*).
+
+   > **Não cadastre `TZ`.** A Vercel reserva esse nome e recusa com *"O nome da
+   > sua variável de ambiente está reservado"*. E não faz falta: o app decide o
+   > dia sempre em Porto Alegre, fixo no código, seja qual for o fuso do
+   > servidor. O servidor da Vercel roda em UTC e a suíte de testes passa
+   > inteira assim.
 
 6. Clique em **Deploy** e espere. Leva uns dois minutos.
 
@@ -292,12 +298,25 @@ derruba todas as sessões daquele login.
 | "Aguardando a primeira importação do mês" | Ninguém subiu o relatório ainda | Peça ao admin |
 | Números zerados no mês novo | As metas do mês ainda não foram preenchidas | Metas do mês, em cada loja |
 | Deploy falhou com `P1001` | `DATABASE_URL` errado na Vercel | Settings → Environment Variables → corrigir → Redeploy |
+| "O nome da sua variável de ambiente está reservado" | Você tentou cadastrar `TZ` | Não cadastre. O app não usa variável de fuso |
 
 ---
 
-## Uma nota sobre uma variável que sumiu
+## Duas variáveis que sumiram
 
-Versões anteriores do `.env.example` pediam um `SESSAO_SECRET`. Ele nunca foi
-usado por nada: o token de sessão é aleatório e o banco guarda só o hash dele,
-então não há o que assinar. Pedir um segredo que não faz nada é pior do que não
-pedir — dá a impressão de proteção onde não há mecanismo. Foi removido.
+**`SESSAO_SECRET`.** Versões anteriores do `.env.example` pediam um. Ele nunca
+foi usado por nada: o token de sessão é aleatório e o banco guarda só o hash
+dele, então não há o que assinar. Pedir um segredo que não faz nada é pior do
+que não pedir — dá a impressão de proteção onde não há mecanismo.
+
+**`TZ`.** Também saiu, por dois motivos que se somam. A Vercel reserva esse
+nome e recusa cadastrá-lo. E o app nunca a leu: `src/lib/data.ts` fixa
+`America/Sao_Paulo` e faz toda conversão com `Intl` passando o fuso
+explicitamente, justamente para não depender de como o servidor está
+configurado. `tests/data.test.ts` prova isso — o mesmo instante devolve o mesmo
+dia com `TZ` valendo UTC, Tóquio, Los Angeles ou nada.
+
+Isso importa mais do que parece: a extração do relatório sai às 17h50 ou 18h39,
+que em UTC é perto da virada do dia. Se o app decidisse o dia pelo fuso do
+servidor, a importação da noite cairia no dia seguinte — e o "resultado do dia",
+que é a diferença entre duas importações, sairia todo errado.
